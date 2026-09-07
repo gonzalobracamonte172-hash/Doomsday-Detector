@@ -3,12 +3,12 @@ chcp 65001 > $null
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 # ============================================================
-# EL SOMBRIO IF - FORENSIC SCANNER (MASTER V3 - SS FORENSIC)
+# EL SOMBRIO IF - FORENSIC SCANNER (MASTER V4 - FULL SUITE)
 # ============================================================
 
 $script:DefaultModsPath = "$env:APPDATA\.minecraft\mods"
 
-# Base de datos limpia de nombres (Se borró "dooms" y "doomsday" por nombre)
+# Base de datos (Sin "dooms" ni "doomsday" para la lectura por nombre)
 $script:IllegalKeywords = @(
     "antighosttotem", "fasttotem", "totemhelper", "autototem", "totem", "switchtotems",
     "acurateblock", "fastplace", "attacktroughgrass", "periodicattack", "toroautoattack",
@@ -23,18 +23,16 @@ $script:IllegalKeywords = @(
     "raven", "vape", "novoline", "flux", "impact", "inertia", "kami", "krypton"
 )
 
-# FIRMAS INTERNAS DE BYTES Y CONFIGURACIONES (AQUÍ CAEMOS AL DOOMSDAY OCULTO)
+# Firmas de Bytes Internos (Para lectura cruda, aquí SÍ se mantiene Doomsday)
 $script:DoomsdayStrings = @(
     "lYgKfQhaCkHofBf", "?WHt4Y", "!hi!kGD@<nS", "%#ksghCP$NIS7$EQuX",
-    "jnativehook", "net.java.h", "net.java.r", "net.java.s", "net/java/l", "net/java/n",
-    "mod_d", "`"id`":`"dd`"", "`"modid`":`"dd`"", 
-    "74b5ddc5-d6b9-4e68-9d1e-d55766c6b282", "53bedd23-02b4-4265-af05-786bb49624cd"
+    "jnativehook"
 )
 
 $script:WindowsServices = @("dps", "appinfo", "pcasvc", "eventlog", "sysmain", "dusmsvc", "bam")
 
 # ============================================================
-# LECTOR DE ARCHIVOS BLINDADO (ANTI-BLOQUEOS DE JAVA)
+# LECTOR DE ARCHIVOS BLINDADO (EVITA CIERRES)
 # ============================================================
 function Get-SafeBytes {
     param([string]$Path)
@@ -90,7 +88,7 @@ if (-not ([System.Management.Automation.PSTypeName]'NtdllDecompressor').Type) {
 function Show-Banner {
     Clear-Host
     Write-Host "`n                    Made by zedoon (aka Yaz) @ Mars MC SS team & RL forensics" -ForegroundColor Cyan
-    Write-Host "                    Doomsday Client Scanner v1.7 (Forensic Config Scanner)" -ForegroundColor Cyan
+    Write-Host "                    Doomsday Client Scanner v1.8 (Payload & BAM)" -ForegroundColor Cyan
     Write-Host ""
 }
 
@@ -153,18 +151,18 @@ function Start-FullModScan {
         $name = $file.BaseName.ToLower() -replace '[\s\-_]', ''
         $isIllegal = $false; $motivo = ""
 
-        # Búsqueda por Nombre (sin doomsday)
+        # Búsqueda por Nombre
         foreach ($kw in $script:IllegalKeywords) {
             if ($name -match $kw) { $isIllegal = $true; $motivo = "Nombre Ilegal ($kw)"; break }
         }
 
-        # Búsqueda Profunda (Bytes inyectados y Archivos de Configuración Internos)
+        # Búsqueda Profunda
         if (-not $isIllegal -and ($file.Extension -eq ".jar" -or $file.Extension -eq ".zip")) {
             $bytes = Get-SafeBytes -Path $file.FullName
             if ($null -ne $bytes) {
                 $contentStr = [System.Text.Encoding]::ASCII.GetString($bytes)
                 foreach ($ds in $script:DoomsdayStrings) {
-                    if ($contentStr.Contains($ds)) { $isIllegal = $true; $motivo = "Firma Oculta: $ds"; break }
+                    if ($contentStr.Contains($ds)) { $isIllegal = $true; $motivo = "Firma Oculta"; break }
                 }
             }
         }
@@ -227,7 +225,7 @@ function Start-DoomsdayMemoryScan {
 }
 
 # ============================================================
-# [OPCION 3] PREFETCH + REGISTRO BAM (MÁS RECIENTE / HOY)
+# [OPCION 3] PREFETCH + REGISTRO BAM
 # ============================================================
 function Start-SystemScan {
     $todayStr = (Get-Date).ToString("yyyy-MM-dd")
@@ -236,7 +234,6 @@ function Start-SystemScan {
 
     $hallazgosAlertas = [System.Collections.Generic.List[string]]::new()
 
-    # 1. LECTURA DE BAM (Background Activity Moderator)
     Write-Host "     [*] Analizando Registro BAM (Ejecuciones Ocultas)..." -ForegroundColor Magenta
     $bamPath = "HKLM:\SYSTEM\CurrentControlSet\Services\bam\State\UserSettings\*"
     $bamEntries = Get-ItemProperty $bamPath -ErrorAction SilentlyContinue
@@ -252,7 +249,6 @@ function Start-SystemScan {
         }
     }
 
-    # 2. LECTURA DE PREFETCH
     Write-Host "`n     [*] Mostrando actividad del Prefetch de Hoy:`n" -ForegroundColor Cyan
     $prefetchPath = "C:\Windows\Prefetch"
     
@@ -298,7 +294,6 @@ function Start-RecycleBinScan {
         foreach ($item in $recycleBin.Items()) {
             $fechaElim = $recycleBin.GetDetailsOf($item, 2)
             Write-Host "     [!] $($item.Name) | Fecha: $fechaElim" -ForegroundColor Red
-            
             if ($item.Name.ToLower() -match "click|macro|ghost|meteor|totem|vape") {
                 $hallazgosPapelera.Add("HACK BORRADO: $($item.Name)")
             }
@@ -329,7 +324,7 @@ function Start-MacroAudit {
         if (Test-Path $item.Path) {
             $extraInfo = "Instalado"
             if ($item.Name -eq "Corsair CUE" -and (Get-Content $item.Path -Raw -ErrorAction SilentlyContinue) -match "RecMouseClicksEnable") { 
-                $extraInfo = "MACRO ACTIVA (RecMouseClicks)" 
+                $extraInfo = "MACRO ACTIVA" 
                 $hallazgosMacros.Add("$($item.Name) - Macro Activa")
             } else {
                 $hallazgosMacros.Add("$($item.Name) Detectado")
@@ -429,10 +424,71 @@ function Start-DllScan {
 }
 
 # ============================================================
+# [OPCION 9] EJECUTAR JOURNALTRACE
+# ============================================================
+function Start-JournalTrace {
+    Show-Header "ANÁLISIS DE USN JOURNAL (JOURNALTRACE)"
+    if (-not (Test-Administrator)) { Write-Host "     [!] Se requiere Administrador."; Pause-Scanner; return }
+
+    $url = "https://github.com/ponei/JournalTrace/releases/download/1.0/JournalTrace.exe"
+    $exePath = "$env:TEMP\JournalTrace.exe"
+
+    if (-not (Test-Path $exePath)) {
+        Write-Host "     [*] Descargando JournalTrace desde GitHub..." -ForegroundColor Cyan
+        try {
+            Invoke-WebRequest -Uri $url -OutFile $exePath -UseBasicParsing
+            Write-Host "     [+] Descarga completada." -ForegroundColor Green
+        } catch {
+            Write-Host "     [!] Error de descarga: $($_.Exception.Message)" -ForegroundColor Red
+            Pause-Scanner
+            return
+        }
+    }
+
+    Write-Host "     [*] Ejecutando JournalTrace en esta consola...`n" -ForegroundColor Yellow
+    try {
+        $process = Start-Process -FilePath $exePath -NoNewWindow -Wait -PassThru
+        Write-Host "`n     [✔] Ejecución finalizada." -ForegroundColor Green
+    } catch {}
+    Pause-Scanner
+}
+
+# ============================================================
+# [OPCION 10] EJECUTAR PAYLOAD (GITHUB)
+# ============================================================
+function Start-RemoteScript {
+    Show-Header "EJECUCIÓN DE SCRIPT REMOTO (GITHUB)"
+    if (-not (Test-Administrator)) { Write-Host "     [!] Se requiere Administrador."; Pause-Scanner; return }
+
+    # ==============================================================================
+    # REEMPLAZA "TU_ENLACE_COMPLETO_AQUI" CON TU ENLACE RAW DE GITHUB
+    # ==============================================================================
+    $urlRawGithub = "https://raw.githubusercontent.com/TU_ENLACE_COMPLETO_AQUI"
+    
+    Write-Host "     [*] Preparando ejecución desde origen externo..." -ForegroundColor Cyan
+    Write-Host "     [i] URL objetivo: $urlRawGithub" -ForegroundColor DarkGray
+    Write-Host "     [!] Lanzando CMD en modo Administrador...`n" -ForegroundColor Yellow
+
+    try {
+        # Armamos el comando CMD para que invoque PowerShell de forma silenciosa, haga bypass de políticas y ejecute el payload
+        $cmdArgs = "/k powershell Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass && powershell Invoke-Expression (Invoke-RestMethod '$urlRawGithub')"
+        
+        Start-Process -FilePath "cmd.exe" -ArgumentList $cmdArgs -Verb RunAs
+        
+        Write-Host "     [+] La ventana de comandos (CMD) se abrió correctamente." -ForegroundColor Green
+        Write-Host "     [i] Revisa la nueva ventana para interactuar con tu script." -ForegroundColor Green
+    } catch {
+        Write-Host "     [!] Error al intentar abrir CMD: $($_.Exception.Message)" -ForegroundColor Red
+    }
+
+    Pause-Scanner
+}
+
+# ============================================================
 # [OPCION 11] ANÁLISIS COMPLETO DEL DISCO
 # ============================================================
 function Start-FullDiskScan {
-    Show-Header "ANÁLISIS COMPLETO DEL DISCO (CAZADOR DE HACKS)"
+    Show-Header "ANÁLISIS COMPLETO DEL DISCO"
     Write-Host "     [*] Escaneando C:\Users en busca de clientes ocultos..." -ForegroundColor Cyan
     Write-Host "     [i] Por favor espera, esto puede tomar varios minutos.`n" -ForegroundColor DarkGray
 
@@ -466,15 +522,15 @@ function Show-MainMenu {
             Write-Host "     ╔══════════════════════════════════════════════════════════════╗" -ForegroundColor DarkRed
             Write-Host "     ║               MODO: INTERVENCIÓN Y AUDITORÍA                 ║" -ForegroundColor White
             Write-Host "     ╚══════════════════════════════════════════════════════════════╝" -ForegroundColor DarkRed
-            Write-Host "`n       [1] Analizar Mods (.minecraft\mods)       [5] Auditoría de Macros" -ForegroundColor White
-            Write-Host "       [2] Detección Profunda Hacks                [6] Killer Screen (Diff)" -ForegroundColor Yellow
-            Write-Host "       [3] Intervención Rápida (Prefetch/BAM)      [7] Servicios Windows" -ForegroundColor White
-            Write-Host "       [4] Análisis Papelera de Reciclaje         [8] Análisis DLLs Modificadas" -ForegroundColor White
-            Write-Host "       --------------------------------------------------------------" -ForegroundColor DarkGray
-            Write-Host "       [11] Análisis Completo del Disco           [12] Salir de la Aplicación" -ForegroundColor Cyan
+            Write-Host "`n       [1] Analizar Mods (.minecraft\mods)       [7] Servicios Windows" -ForegroundColor White
+            Write-Host "       [2] Detección Profunda Hacks                [8] Análisis DLLs Modificadas" -ForegroundColor Yellow
+            Write-Host "       [3] Intervención Rápida (Prefetch/BAM)      [9] Ejecutar JournalTrace" -ForegroundColor White
+            Write-Host "       [4] Análisis Papelera de Reciclaje         [10] Ejecutar Payload (GitHub)" -ForegroundColor White
+            Write-Host "       [5] Auditoría de Macros                    [11] Análisis Completo del Disco" -ForegroundColor Cyan
+            Write-Host "       [6] Killer Screen (Diff)                   [12] Salir de la Aplicación" -ForegroundColor Red
             Write-Host "`n     ----------------------------------------------------------------" -ForegroundColor DarkGray
             
-            $option = Read-Host "`n     Selecciona una opción"
+            $option = Read-Host "`n     Selecciona una opción [1-12]"
             switch ($option) {
                 "1" { Start-FullModScan }
                 "2" { Start-DoomsdayMemoryScan }
@@ -484,6 +540,8 @@ function Show-MainMenu {
                 "6" { Start-DiffKiller }
                 "7" { Show-WindowsServices }
                 "8" { Start-DllScan }
+                "9" { Start-JournalTrace }
+                "10"{ Start-RemoteScript }
                 "11"{ Start-FullDiskScan }
                 "12"{ Clear-Host; Write-Host "`n     ¡Hasta luego, Joaquín!`n" -ForegroundColor Red; return }
                 default { Write-Host "`n     [!] Opción inválida." -ForegroundColor Red; Start-Sleep -Seconds 1 }
