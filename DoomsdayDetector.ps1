@@ -3,12 +3,12 @@ chcp 65001 > $null
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 # ============================================================
-# EL SOMBRIO IF - FORENSIC SCANNER (MASTER V2 BAM + FULL 1-8)
+# EL SOMBRIO IF - FORENSIC SCANNER (MASTER V3 - SS FORENSIC)
 # ============================================================
 
 $script:DefaultModsPath = "$env:APPDATA\.minecraft\mods"
 
-# Base de datos (Sin "dooms" ni "doomsday" para la lectura por nombre)
+# Base de datos limpia de nombres (Se borró "dooms" y "doomsday" por nombre)
 $script:IllegalKeywords = @(
     "antighosttotem", "fasttotem", "totemhelper", "autototem", "totem", "switchtotems",
     "acurateblock", "fastplace", "attacktroughgrass", "periodicattack", "toroautoattack",
@@ -23,16 +23,18 @@ $script:IllegalKeywords = @(
     "raven", "vape", "novoline", "flux", "impact", "inertia", "kami", "krypton"
 )
 
-# Firmas de Bytes Internos (Para lectura cruda, aquí SÍ se mantiene Doomsday)
+# FIRMAS INTERNAS DE BYTES Y CONFIGURACIONES (AQUÍ CAEMOS AL DOOMSDAY OCULTO)
 $script:DoomsdayStrings = @(
     "lYgKfQhaCkHofBf", "?WHt4Y", "!hi!kGD@<nS", "%#ksghCP$NIS7$EQuX",
-    "jnativehook"
+    "jnativehook", "net.java.h", "net.java.r", "net.java.s", "net/java/l", "net/java/n",
+    "mod_d", "`"id`":`"dd`"", "`"modid`":`"dd`"", 
+    "74b5ddc5-d6b9-4e68-9d1e-d55766c6b282", "53bedd23-02b4-4265-af05-786bb49624cd"
 )
 
 $script:WindowsServices = @("dps", "appinfo", "pcasvc", "eventlog", "sysmain", "dusmsvc", "bam")
 
 # ============================================================
-# LECTOR DE ARCHIVOS BLINDADO (EVITA CIERRES)
+# LECTOR DE ARCHIVOS BLINDADO (ANTI-BLOQUEOS DE JAVA)
 # ============================================================
 function Get-SafeBytes {
     param([string]$Path)
@@ -88,7 +90,7 @@ if (-not ([System.Management.Automation.PSTypeName]'NtdllDecompressor').Type) {
 function Show-Banner {
     Clear-Host
     Write-Host "`n                    Made by zedoon (aka Yaz) @ Mars MC SS team & RL forensics" -ForegroundColor Cyan
-    Write-Host "                    Doomsday Client Scanner v1.6 (BAM + Prefetch Engine)" -ForegroundColor Cyan
+    Write-Host "                    Doomsday Client Scanner v1.7 (Forensic Config Scanner)" -ForegroundColor Cyan
     Write-Host ""
 }
 
@@ -156,13 +158,13 @@ function Start-FullModScan {
             if ($name -match $kw) { $isIllegal = $true; $motivo = "Nombre Ilegal ($kw)"; break }
         }
 
-        # Búsqueda Profunda (Bytes inyectados)
+        # Búsqueda Profunda (Bytes inyectados y Archivos de Configuración Internos)
         if (-not $isIllegal -and ($file.Extension -eq ".jar" -or $file.Extension -eq ".zip")) {
             $bytes = Get-SafeBytes -Path $file.FullName
             if ($null -ne $bytes) {
                 $contentStr = [System.Text.Encoding]::ASCII.GetString($bytes)
                 foreach ($ds in $script:DoomsdayStrings) {
-                    if ($contentStr.Contains($ds)) { $isIllegal = $true; $motivo = "Firma Oculta"; break }
+                    if ($contentStr.Contains($ds)) { $isIllegal = $true; $motivo = "Firma Oculta: $ds"; break }
                 }
             }
         }
@@ -297,7 +299,6 @@ function Start-RecycleBinScan {
             $fechaElim = $recycleBin.GetDetailsOf($item, 2)
             Write-Host "     [!] $($item.Name) | Fecha: $fechaElim" -ForegroundColor Red
             
-            # Alerta si hay un hack borrado
             if ($item.Name.ToLower() -match "click|macro|ghost|meteor|totem|vape") {
                 $hallazgosPapelera.Add("HACK BORRADO: $($item.Name)")
             }
