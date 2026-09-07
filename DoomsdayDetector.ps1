@@ -3,7 +3,7 @@ chcp 65001 > $null
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 # ============================================================
-# EL SOMBRIO IF - FORENSIC SCANNER (MASTER V5 - SS HUB)
+# EL SOMBRIO IF - FORENSIC SCANNER (MASTER V7 - WIN+R UPDATE)
 # ============================================================
 
 $script:DefaultModsPath = "$env:APPDATA\.minecraft\mods"
@@ -88,7 +88,7 @@ if (-not ([System.Management.Automation.PSTypeName]'NtdllDecompressor').Type) {
 function Show-Banner {
     Clear-Host
     Write-Host "`n                    Made by zedoon (aka Yaz) @ Mars MC SS team & RL forensics" -ForegroundColor Cyan
-    Write-Host "                    Doomsday Client Scanner v1.9 (Hub de Herramientas SS)" -ForegroundColor Cyan
+    Write-Host "                    Doomsday Client Scanner v1.9 (Win+R & Disk Update)" -ForegroundColor Cyan
     Write-Host ""
 }
 
@@ -151,12 +151,10 @@ function Start-FullModScan {
         $name = $file.BaseName.ToLower() -replace '[\s\-_]', ''
         $isIllegal = $false; $motivo = ""
 
-        # Búsqueda por Nombre
         foreach ($kw in $script:IllegalKeywords) {
             if ($name -match $kw) { $isIllegal = $true; $motivo = "Nombre Ilegal ($kw)"; break }
         }
 
-        # Búsqueda Profunda
         if (-not $isIllegal -and ($file.Extension -eq ".jar" -or $file.Extension -eq ".zip")) {
             $bytes = Get-SafeBytes -Path $file.FullName
             if ($null -ne $bytes) {
@@ -365,7 +363,7 @@ function Start-DiffKiller {
 }
 
 # ============================================================
-# [OPCION 7] SERVICIOS WINDOWS (FORENSIC)
+# [OPCION 7] SERVICIOS WINDOWS
 # ============================================================
 function Show-WindowsServices {
     Show-Header "ESTADO DE SERVICIOS WINDOWS (FORENSIC)"
@@ -393,14 +391,14 @@ function Show-WindowsServices {
 }
 
 # ============================================================
-# [OPCION 8] ANÁLISIS DE DLLs MODIFICADAS RECIENTEMENTE
+# [OPCION 8] ANÁLISIS DE DLLs MODIFICADAS (1 MES)
 # ============================================================
 function Start-DllScan {
     Show-Header "ANÁLISIS DE DLLs DEL SISTEMA MODIFICADAS"
     if (-not (Test-Administrator)) { Write-Host "     [!] Se requiere Administrador."; Pause-Scanner; return }
     
-    Write-Host "     [*] Escaneando DLLs alteradas en los últimos 7 días..." -ForegroundColor Cyan
-    $limitDate = (Get-Date).AddDays(-7)
+    Write-Host "     [*] Escaneando DLLs alteradas en el ÚLTIMO MES (30 días)..." -ForegroundColor Cyan
+    $limitDate = (Get-Date).AddDays(-30)
     $systemPaths = @("$env:SystemRoot\System32", "$env:SystemRoot\SysWOW64")
     $hallazgosDLL = [System.Collections.Generic.List[string]]::new()
 
@@ -419,17 +417,16 @@ function Start-DllScan {
         }
     }
 
-    Show-DetectionBox -Detections $hallazgosDLL -Title "DLLs ANÓMALAS O SIN FIRMA"
+    Show-DetectionBox -Detections $hallazgosDLL -Title "DLLs ANÓMALAS O SIN FIRMA (ÚLTIMO MES)"
     Pause-Scanner
 }
 
 # ============================================================
-# [OPCION 9] HUB DE HERRAMIENTAS SS (DESCARGAS)
+# [OPCION 9] HUB DE HERRAMIENTAS SS
 # ============================================================
 function Start-SSToolsHub {
     Show-Header "HUB DE HERRAMIENTAS SS (APLICACIONES Y DESCARGAS)"
-    Write-Host "     [*] Colección de herramientas de ScreenShare y Forense..." -ForegroundColor Cyan
-    Write-Host ""
+    Write-Host "     [*] Colección de herramientas de ScreenShare y Forense...`n" -ForegroundColor Cyan
 
     $tools = @(
         [PSCustomObject]@{ Id=1; Name="AnyDesk"; Url="https://anydesk.com/es/downloads/thank-you?dv=win_exe"; Icon="🖥️" }
@@ -481,7 +478,7 @@ function Start-RemoteScript {
     if (-not (Test-Administrator)) { Write-Host "     [!] Se requiere Administrador."; Pause-Scanner; return }
 
     # ==============================================================================
-    # REEMPLAZA ESTE ENLACE CON TU ENLACE RAW DE GITHUB
+    # REEMPLAZA "TU_ENLACE_COMPLETO_AQUI" CON TU ENLACE RAW DE GITHUB
     # ==============================================================================
     $urlRawGithub = "https://raw.githubusercontent.com/TU_ENLACE_COMPLETO_AQUI"
     
@@ -493,7 +490,6 @@ function Start-RemoteScript {
         $cmdArgs = "/k powershell Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass && powershell Invoke-Expression (Invoke-RestMethod '$urlRawGithub')"
         Start-Process -FilePath "cmd.exe" -ArgumentList $cmdArgs -Verb RunAs
         Write-Host "     [+] La ventana de comandos (CMD) se abrió correctamente." -ForegroundColor Green
-        Write-Host "     [i] Revisa la nueva ventana para interactuar con tu script." -ForegroundColor Green
     } catch {
         Write-Host "     [!] Error al intentar abrir CMD: $($_.Exception.Message)" -ForegroundColor Red
     }
@@ -502,7 +498,38 @@ function Start-RemoteScript {
 }
 
 # ============================================================
-# [OPCION 11] ANÁLISIS COMPLETO DEL DISCO
+# [OPCION 11] EJECUTAR JOURNALTRACE AUTO
+# ============================================================
+function Start-JournalTrace {
+    Show-Header "ANÁLISIS DE USN JOURNAL (JOURNALTRACE)"
+    if (-not (Test-Administrator)) { Write-Host "     [!] Se requiere Administrador."; Pause-Scanner; return }
+
+    $url = "https://github.com/ponei/JournalTrace/releases/download/1.0/JournalTrace.exe"
+    $exePath = "$env:TEMP\JournalTrace.exe"
+
+    if (-not (Test-Path $exePath)) {
+        Write-Host "     [*] Descargando JournalTrace desde GitHub..." -ForegroundColor Cyan
+        try {
+            Invoke-WebRequest -Uri $url -OutFile $exePath -UseBasicParsing
+            Write-Host "     [+] Descarga completada." -ForegroundColor Green
+        } catch {
+            Write-Host "     [!] Error de descarga: $($_.Exception.Message)" -ForegroundColor Red
+            Pause-Scanner
+            return
+        }
+    }
+
+    Write-Host "     [*] Ejecutando JournalTrace en esta consola...`n" -ForegroundColor Yellow
+    try {
+        $process = Start-Process -FilePath $exePath -NoNewWindow -Wait -PassThru
+        Write-Host "`n     [✔] Ejecución finalizada." -ForegroundColor Green
+    } catch {}
+    Pause-Scanner
+}
+
+
+# ============================================================
+# [OPCION 12] ANÁLISIS COMPLETO DEL DISCO
 # ============================================================
 function Start-FullDiskScan {
     Show-Header "ANÁLISIS COMPLETO DEL DISCO"
@@ -515,18 +542,69 @@ function Start-FullDiskScan {
     foreach ($path in $pathsToScan) {
         if (Test-Path $path) {
             $files = Get-ChildItem -Path $path -Recurse -File -Include "*.jar","*.exe","*.dll" -ErrorAction SilentlyContinue | Where-Object {
-                $_.Name -match "clicker|autoclick|ghost|meteor|wurst|aristois|vape|raven|krypton|totem"
+                $_.Name -match "clicker|autoclick|ghost|meteor|wurst|aristois|vape|raven|krypton|totem|doomsday|dooms"
             }
             foreach ($f in $files) {
                 Write-Host "     [!] Hack Oculto: $($f.Name)" -ForegroundColor Red
                 Write-Host "         Ruta: $($f.FullName)" -ForegroundColor Yellow
-                $hallazgosDisco.Add($f.Name)
+                $hallazgosDisco.Add("$($f.Name) | Carpeta: $($f.Directory.Name)")
             }
         }
     }
 
     Show-DetectionBox -Detections $hallazgosDisco -Title "ARCHIVOS SOSPECHOSOS EN EL DISCO"
     Pause-Scanner
+}
+
+# ============================================================
+# [OPCION 13] RUTAS DE ANÁLISIS MANUAL (WIN + R)
+# ============================================================
+function Start-WinRCommands {
+    Show-Header "RUTAS DE ANÁLISIS MANUAL (WINDOWS + R)"
+    Write-Host "     [*] Rutas rápidas para ejecución manual o análisis visual...`n" -ForegroundColor Cyan
+
+    $rutas = @(
+        [PSCustomObject]@{ Id=1;  Cmd="C:\`$Recycle.bin"; Desc="Archivos eliminados (Papelera)" }
+        [PSCustomObject]@{ Id=2;  Cmd="regedit"; Desc="Registro negativo de windows" }
+        [PSCustomObject]@{ Id=3;  Cmd="C:\Windows\Prefetch"; Desc="Programas ejecutados (Javaw.pf)" }
+        [PSCustomObject]@{ Id=4;  Cmd="$env:TEMP"; Desc="JnativeHook ➜ dependencia autoclickers viejos" }
+        [PSCustomObject]@{ Id=5;  Cmd="$env:APPDATA\.minecraft"; Desc="Buscar en mods/versions/logs/resourcepacks" }
+        [PSCustomObject]@{ Id=6;  Cmd="shell:recent"; Desc="Archivos ejecutados recientemente" }
+        [PSCustomObject]@{ Id=7;  Cmd="$env:APPDATA\Microsoft\Windows\PowerShell\PSReadLine"; Desc="Historial comandos PowerShell" }
+        [PSCustomObject]@{ Id=8;  Cmd="msinfo32"; Desc="Virtual machine = ban" }
+        [PSCustomObject]@{ Id=9;  Cmd="C:\Windows\System32\drivers\etc"; Desc="Hosts bloqueados" }
+        [PSCustomObject]@{ Id=10; Cmd="$env:LOCALAPPDATA\Microsoft\Windows\History"; Desc="Páginas y archivos ejecutados" }
+    )
+
+    foreach ($r in $rutas) {
+        $idPad = $r.Id.ToString().PadLeft(2, ' ')
+        Write-Host "     [$idPad] Comando: " -NoNewline -ForegroundColor White
+        Write-Host ($r.Cmd).PadRight(60, ' ') -NoNewline -ForegroundColor Yellow
+        Write-Host "`n          ➜ $($r.Desc)" -ForegroundColor Gray
+    }
+
+    Write-Host "`n     [0] Regresar al Menú Principal" -ForegroundColor Red
+    
+    while ($true) {
+        $choice = (Read-Host "`n     Ingresa el número para ABRIR la ruta (o 0 para salir)").Trim()
+        if ($choice -eq "0") { break }
+        
+        $selected = $rutas | Where-Object { $_.Id.ToString() -eq $choice }
+        if ($selected) {
+            Write-Host "     [+] Abriendo $($selected.Cmd)..." -ForegroundColor Green
+            try {
+                if ($selected.Cmd -eq "regedit" -or $selected.Cmd -eq "msinfo32") {
+                    Start-Process $selected.Cmd
+                } else {
+                    Start-Process "explorer.exe" $selected.Cmd
+                }
+            } catch {
+                Write-Host "     [!] No se pudo abrir la ruta. Verifica permisos o existencia." -ForegroundColor Red
+            }
+        } else {
+            Write-Host "     [!] Opción inválida. Intenta nuevamente." -ForegroundColor Red
+        }
+    }
 }
 
 # ============================================================
@@ -539,15 +617,16 @@ function Show-MainMenu {
             Write-Host "     ╔══════════════════════════════════════════════════════════════╗" -ForegroundColor DarkRed
             Write-Host "     ║               MODO: INTERVENCIÓN Y AUDITORÍA                 ║" -ForegroundColor White
             Write-Host "     ╚══════════════════════════════════════════════════════════════╝" -ForegroundColor DarkRed
-            Write-Host "`n       [1] Analizar Mods (.minecraft\mods)       [7] Servicios Windows" -ForegroundColor White
-            Write-Host "       [2] Detección Profunda Hacks                [8] Análisis DLLs Modificadas" -ForegroundColor Yellow
-            Write-Host "       [3] Intervención Rápida (Prefetch/BAM)      [9] Hub de Herramientas SS (Descargas)" -ForegroundColor White
-            Write-Host "       [4] Análisis Papelera de Reciclaje         [10] Ejecutar Payload (GitHub)" -ForegroundColor White
-            Write-Host "       [5] Auditoría de Macros                    [11] Análisis Completo del Disco" -ForegroundColor Cyan
-            Write-Host "       [6] Killer Screen (Diff)                   [12] Salir de la Aplicación" -ForegroundColor Red
+            Write-Host "`n       [1] Analizar Mods (.minecraft\mods)       [8] Análisis DLLs (1 MES)" -ForegroundColor White
+            Write-Host "       [2] Detección Profunda Hacks                [9] Hub Herramientas SS" -ForegroundColor Yellow
+            Write-Host "       [3] Intervención Rápida (Prefetch/BAM)      [10] Ejecutar Payload (GitHub)" -ForegroundColor White
+            Write-Host "       [4] Análisis Papelera de Reciclaje         [11] Ejecutar JournalTrace" -ForegroundColor White
+            Write-Host "       [5] Auditoría de Macros                    [12] Análisis Completo del Disco" -ForegroundColor Cyan
+            Write-Host "       [6] Killer Screen (Diff)                   [13] Rutas Manuales (Win + R)" -ForegroundColor Magenta
+            Write-Host "       [7] Servicios Windows                      [14] Salir de la Aplicación" -ForegroundColor Red
             Write-Host "`n     ----------------------------------------------------------------" -ForegroundColor DarkGray
             
-            $option = (Read-Host "`n     Selecciona una opción [1-12]").Trim()
+            $option = (Read-Host "`n     Selecciona una opción [1-14]").Trim()
             switch ($option) {
                 "1" { Start-FullModScan }
                 "2" { Start-DoomsdayMemoryScan }
@@ -559,8 +638,10 @@ function Show-MainMenu {
                 "8" { Start-DllScan }
                 "9" { Start-SSToolsHub }
                 "10"{ Start-RemoteScript }
-                "11"{ Start-FullDiskScan }
-                "12"{ Clear-Host; Write-Host "`n     ¡Hasta luego, Joaquín!`n" -ForegroundColor Red; return }
+                "11"{ Start-JournalTrace }
+                "12"{ Start-FullDiskScan }
+                "13"{ Start-WinRCommands }
+                "14"{ Clear-Host; Write-Host "`n     ¡Hasta luego, Joaquín!`n" -ForegroundColor Red; return }
                 default { Write-Host "`n     [!] Opción inválida." -ForegroundColor Red; Start-Sleep -Seconds 1 }
             }
         } catch {
