@@ -3,7 +3,7 @@ chcp 65001 > $null
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 # ============================================================
-# EL SOMBRIO IF - FORENSIC SCANNER (MASTER ENGINE 2026)
+# EL SOMBRIO IF - FORENSIC SCANNER (DOOMSDAY ENGINE DEFINITIVO)
 # ============================================================
 
 $script:DefaultModsPath = "$env:APPDATA\.minecraft\mods"
@@ -21,47 +21,57 @@ $script:IllegalKeywords = @(
     "doomsday", "jnativehook"
 )
 
+$script:DoomsdayStrings = @(
+    "lYgKfQhaCkHofBf", "?WHt4Y", "!hi!kGD@<nS", "%#ksghCP$NIS7$EQuX",
+    "%@])c@[u6g6mCf1(", "]Cu2TF", "WO^iB", "#-=yL&yn`R", "doomsday", "jnativehook"
+)
+
 $script:FoundItemsTable   = [System.Collections.Generic.List[PSCustomObject]]::new()
 $script:JavaPrefetchTable = [System.Collections.Generic.List[PSCustomObject]]::new()
 $script:RecycleBinTable   = [System.Collections.Generic.List[PSCustomObject]]::new()
-$script:BamPcaTable       = [System.Collections.Generic.List[PSCustomObject]]::new()
 $script:DllModTable       = [System.Collections.Generic.List[PSCustomObject]]::new()
 $script:WindowsServices   = @("dps", "appinfo", "pcasvc", "eventlog", "sysmain", "dusmsvc", "bam")
 
 # ============================================================
-# NTLD DECOMPRESSOR & MOTOR DOOMSDAY (DE TU CÓDIGO BASE)
+# MOTOR NTLD DECOMPRESSOR OFICIAL (SCCA PARSER)
 # ============================================================
-Add-Type -TypeDefinition @"
-using System;
-using System.Runtime.InteropServices;
+try {
+    Add-Type -TypeDefinition @"
+    using System;
+    using System.Runtime.InteropServices;
 
-public class NtdllDecompressor {
-    [DllImport("ntdll.dll")]
-    public static extern uint RtlDecompressBufferEx(ushort CompressionFormat, byte[] UncompressedBuffer, int UncompressedBufferSize, byte[] CompressedBuffer, int CompressedBufferSize, out int FinalUncompressedSize, IntPtr WorkSpace);
-    
-    [DllImport("ntdll.dll")]
-    public static extern uint RtlGetCompressionWorkSpaceSize(ushort CompressionFormat, out uint CompressBufferWorkSpaceSize, out uint CompressFragmentWorkSpaceSize);
-    
-    public static byte[] Decompress(byte[] compressed) {
-        if (compressed.Length < 8) return null;
-        if (compressed[0] != 0x4D || compressed[1] != 0x41 || compressed[2] != 0x4D) return null;
-        int uncompSize = BitConverter.ToInt32(compressed, 4);
-        uint wsComp, wsFrag;
-        if (RtlGetCompressionWorkSpaceSize(4, out wsComp, out wsFrag) != 0) return null;
-        IntPtr workspace = Marshal.AllocHGlobal((int)wsFrag);
-        byte[] result = new byte[uncompSize];
-        try {
-            int finalSize;
-            byte[] compData = new byte[compressed.Length - 8];
-            Array.Copy(compressed, 8, compData, 0, compData.Length);
-            uint status = RtlDecompressBufferEx(4, result, uncompSize, compData, compData.Length, out finalSize, workspace);
-            if (status != 0) return null;
-            return result;
+    public class NtdllDecompressor {
+        [DllImport("ntdll.dll")]
+        public static extern uint RtlDecompressBufferEx(ushort CompressionFormat, byte[] UncompressedBuffer, int UncompressedBufferSize, byte[] CompressedBuffer, int CompressedBufferSize, out int FinalUncompressedSize, IntPtr WorkSpace);
+        
+        [DllImport("ntdll.dll")]
+        public static extern uint RtlGetCompressionWorkSpaceSize(ushort CompressionFormat, out uint CompressBufferWorkSpaceSize, out uint CompressFragmentWorkSpaceSize);
+        
+        public static byte[] Decompress(byte[] compressed) {
+            if (compressed.Length < 8) return null;
+            if (compressed[0] != 0x4D || compressed[1] != 0x41 || compressed[2] != 0x4D) return null;
+            int uncompSize = BitConverter.ToInt32(compressed, 4);
+            uint wsComp, wsFrag;
+            if (RtlGetCompressionWorkSpaceSize(4, out wsComp, out wsFrag) != 0) return null;
+            IntPtr workspace = Marshal.AllocHGlobal((int)wsFrag);
+            byte[] result = new byte[uncompSize];
+            try {
+                int finalSize;
+                byte[] compData = new byte[compressed.Length - 8];
+                Array.Copy(compressed, 8, compData, 0, compData.Length);
+                uint status = RtlDecompressBufferEx(4, result, uncompSize, compData, compData.Length, out finalSize, workspace);
+                if (status != 0) return null;
+                return result;
+            }
+            finally { Marshal.FreeHGlobal(workspace); }
         }
-        finally { Marshal.FreeHGlobal(workspace); }
     }
-}
 "@
+} catch { }
+
+# ============================================================
+# INTERFAZ Y BANNER
+# ============================================================
 
 function Show-Banner {
     $duck1 = @"
@@ -98,124 +108,9 @@ function Show-Banner {
     Write-Host "&" -NoNewline -ForegroundColor Blue
     Write-Host " RL forensics" -ForegroundColor Red
     Write-Host ""
-    Write-Host "                    Doomsday Client Scanner v1.2 (USN Journal)" -ForegroundColor Cyan
+    Write-Host "                    Doomsday Client Scanner v1.2 (USN/Prefetch)" -ForegroundColor Cyan
     Write-Host ""
 }
-
-function Test-Administrator {
-    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
-    $principal = New-Object Security.Principal.WindowsPrincipal($identity)
-    return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-}
-
-function Get-PrefetchVersion {
-    param([byte[]]$data)
-    if ($data.Length -lt 8) { return 0 }
-    $sig = [System.Text.Encoding]::ASCII.GetString($data, 4, 4)
-    if ($sig -ne "SCCA") { return 0 }
-    return [BitConverter]::ToUInt32($data, 0)
-}
-
-function Get-SystemIndexes {
-    param([string]$FilePath)
-    try {
-        $data = [System.IO.File]::ReadAllBytes($FilePath)
-        $isCompressed = ($data[0] -eq 0x4D -and $data[1] -eq 0x41 -and $data[2] -eq 0x4D)
-        if ($isCompressed) {
-            $data = [NtdllDecompressor]::Decompress($data)
-            if ($data -eq $null) { return @() }
-        }
-        if ($data.Length -lt 108) { return @() }
-        
-        $stringsOffset = [BitConverter]::ToUInt32($data, 100)
-        $stringsSize = [BitConverter]::ToUInt32($data, 104)
-        if ($stringsOffset -eq 0 -or $stringsSize -eq 0 -or ($stringsOffset + $stringsSize) -gt $data.Length) { return @() }
-        
-        $filenames = @()
-        $pos = $stringsOffset
-        $endPos = $stringsOffset + $stringsSize
-        while ($pos -lt $endPos -and $pos -lt $data.Length - 2) {
-            $nullPos = $pos
-            while ($nullPos -lt $data.Length - 1) {
-                if ($data[$nullPos] -eq 0 -and $data[$nullPos + 1] -eq 0) { break }
-                $nullPos += 2
-            }
-            if ($nullPos -gt $pos) {
-                try {
-                    $filename = [System.Text.Encoding]::Unicode.GetString($data, $pos, ($nullPos - $pos))
-                    if ($filename.Length -gt 0) { $filenames += $filename }
-                } catch {}
-            }
-            $pos = $nullPos + 2
-            if ($filenames.Count -gt 1000) { break }
-        }
-        return $filenames
-    } catch { return @() }
-}
-
-$script:BytePatterns = @(
-    @{ Name = "Pattern #1"; Bytes = "6161370E160609949E0029033EA7000A2C1D03548403011D1008A1FFF6033EA7000A2B1D03548403011D07A1FFF710FEAC150599001A2A160C14005C6588B800" },
-    @{ Name = "Pattern #2"; Bytes = "0C1504851D85160A6161370E160609949E0029033EA7000A2C1D03548403011D1008A1FFF6033EA7000A2B1D03548403011D07A1FFF710FEAC150599001A2A16" },
-    @{ Name = "Pattern #3"; Bytes = "5910071088544C2A2BB8004D3B033DA7000A2B1C03548402011C1008A1FFF61A9E000C1A110800A2000503AC04AC00000000000A0005004E000101FA000001D3" }
-)
-
-$script:ClassPatterns = @("net/java/f", "net/java/g", "net/java/h", "net/java/i", "net/java/k", "net/java/l", "net/java/m", "net/java/r", "net/java/s", "net/java/t", "net/java/y")
-
-function ConvertHex-ToBytes {
-    param([string]$hexString)
-    $bytes = New-Object byte[] ($hexString.Length / 2)
-    for ($i = 0; $i -lt $hexString.Length; $i += 2) {
-        $bytes[$i / 2] = [Convert]::ToByte($hexString.Substring($i, 2), 16)
-    }
-    return $bytes
-}
-
-function Search-BytePattern {
-    param([byte[]]$data, [byte[]]$pattern)
-    for ($i = 0; $i -le ($data.Length - $pattern.Length); $i++) {
-        $match = $true
-        for ($j = 0; $j -lt $pattern.Length; $j++) {
-            if ($data[$i + $j] -ne $pattern[$j]) { $match = $false; break }
-        }
-        if ($match) { return $true }
-    }
-    return $false
-}
-
-function Test-DoomsdayClient {
-    param([string]$Path)
-    $result = [PSCustomObject]@{ IsDetected = $false; Confidence = "NONE" }
-    if (-not (Test-Path $Path)) { return $result }
-    try {
-        Add-Type -AssemblyName System.IO.Compression.FileSystem
-        $jar = [System.IO.Compression.ZipFile]::OpenRead($Path)
-        $classFiles = $jar.Entries | Where-Object { $_.FullName -like "*.class" }
-        if ($classFiles.Count -eq 0 -or $classFiles.Count -gt 30) { $jar.Dispose(); return $result }
-        
-        $allBytes = @()
-        foreach ($entry in $classFiles) {
-            $stream = $entry.Open()
-            $reader = New-Object System.IO.BinaryReader($stream)
-            $allBytes += $reader.ReadBytes([int]$entry.Length)
-            $reader.Close(); $stream.Close()
-        }
-        $jar.Dispose()
-
-        $matches = 0
-        foreach ($pattern in $script:BytePatterns) {
-            if (Search-BytePattern -data $allBytes -pattern (ConvertHex-ToBytes $pattern.Bytes)) { $matches++ }
-        }
-        if ($matches -ge 1) {
-            $result.IsDetected = $true
-            $result.Confidence = if ($matches -ge 2) { "HIGH" } else { "MEDIUM" }
-        }
-    } catch {}
-    return $result
-}
-
-# ============================================================
-# INTERFAZ Y CENTRADO
-# ============================================================
 
 function Get-CenteredText {
     param([string]$Text, [int]$Width = 62)
@@ -240,6 +135,12 @@ function Pause-Scanner {
     Write-Host ""
     Write-Host "     [ Presiona ENTER para regresar al menú principal ]" -ForegroundColor DarkGray
     Read-Host | Out-Null
+}
+
+function Test-Administrator {
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = New-Object Security.Principal.WindowsPrincipal($identity)
+    return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
 # ============================================================
@@ -268,7 +169,7 @@ function Start-FullModScan {
         Write-Host "`n     [i] Estado del Juego: Cerrado" -ForegroundColor Yellow
     }
 
-    Write-Host "     [*] Analizando mods y ordenando por fecha reciente..." -ForegroundColor White
+    Write-Host "     [*] Analizando mods y buscando firmas de Doomsday..." -ForegroundColor White
     Write-Host ""
 
     $total = $filesInFolder.Count
@@ -293,11 +194,22 @@ function Start-FullModScan {
         }
 
         if (-not $isIllegal -and $file.Extension.ToLower() -eq ".jar") {
-            $doomsdayRes = Test-DoomsdayClient -Path $file.FullName
-            if ($doomsdayRes.IsDetected) {
-                $isIllegal = $true
-                $status = "¡DOOMSDAY CLIENT!"
-            }
+            try {
+                $fileBytes = [System.IO.File]::ReadAllBytes($file.FullName)
+                $isComp = ($fileBytes[0] -eq 0x4D -and $fileBytes[1] -eq 0x41 -and $fileBytes[2] -eq 0x4D)
+                if ($isComp) { $fileBytes = [NtdllDecompressor]::Decompress($fileBytes) }
+                
+                if ($fileBytes -ne $null) {
+                    $fileContentStr = [System.Text.Encoding]::ASCII.GetString($fileBytes)
+                    foreach ($ds in $script:DoomsdayStrings) {
+                        if ($fileContentStr.Contains($ds)) {
+                            $isIllegal = $true
+                            $status = "¡DOOMSDAY CLIENT!"
+                            break
+                        }
+                    }
+                }
+            } catch {}
         }
 
         if ($isIllegal) {
@@ -340,59 +252,78 @@ function Start-FullModScan {
 }
 
 # ============================================================
-# MÓDULO 2: DETECCIÓN PROFUNDA DOOMSDAY (CON TU CÓDIGO BASE INTEGRADO)
+# MÓDULO 2: DETECCIÓN PROFUNDA DOOMSDAY (MOTOR ZEDOON / MEOWDOOMSDAYFUCKER)
 # ============================================================
 function Start-DoomsdayMemoryScan {
     Show-Banner
     if (-not (Test-Administrator)) {
-        Write-Host "     [!] Se requiere Administrador." -ForegroundColor Yellow
+        Write-Host "     [!] Se requiere Administrador para ejecutar la detección profunda." -ForegroundColor Yellow
         Pause-Scanner; return
     }
 
-    Write-Host "     [*] Analizando prefetch de Java con motor Doomsday v1.2..." -ForegroundColor Cyan
-    $systemPath = "C:\Windows\Prefetch"
-    if (-not (Test-Path $systemPath)) {
+    Write-Host "     [*] Iniciando escaneo profundo de Doomsday (Prefetch y Memoria de Java)..." -ForegroundColor Cyan
+    Write-Host ""
+
+    $prefetchPath = "C:\Windows\Prefetch"
+    if (-not (Test-Path $prefetchPath)) {
         Write-Host "     [!] Directorio Prefetch no encontrado." -ForegroundColor Red
         Pause-Scanner; return
     }
 
-    $javaFiles = Get-ChildItem -Path $systemPath -Filter "JAVA*.EXE-*.pf" -ErrorAction SilentlyContinue
+    $javaFiles = Get-ChildItem -Path $prefetchPath -Filter "JAVA*.EXE-*.pf" -ErrorAction SilentlyContinue
     if ($javaFiles.Count -eq 0) {
         Write-Host "     [!] No se encontraron archivos Prefetch de Java." -ForegroundColor Yellow
         Pause-Scanner; return
     }
 
-    $totalDetections = 0
+    $detectionsCount = 0
     foreach ($sysFile in $javaFiles) {
-        $indexes = Get-SystemIndexes -FilePath $sysFile.FullName
-        foreach ($index in $indexes) {
-            if ($index -match '\.jar$') {
-                $checkPath = $index
-                if ($index -match '\\VOLUME\{[^\}]+\}\\(.*)$') { $checkPath = "C:\$($Matches[1])" }
-                
-                if (Test-Path $checkPath) {
-                    $res = Test-DoomsdayClient -Path $checkPath
-                    if ($res.IsDetected) {
-                        $totalDetections++
-                        Write-Host "     [X] ¡DOOMSDAY DETECTADO! Archivo: $checkPath [Confianza: $($res.Confidence)]" -ForegroundColor Red
-                    }
+        try {
+            $data = [System.IO.File]::ReadAllBytes($sysFile.FullName)
+            $isComp = ($data[0] -eq 0x4D -and $data[1] -eq 0x41 -and $data[2] -eq 0x4D)
+            if ($isComp) {
+                $data = [NtdllDecompressor]::Decompress($data)
+            }
+            if ($data -eq null) { continue }
+
+            $text = [System.Text.Encoding]::Unicode.GetString($data)
+            foreach ($ds in $script:DoomsdayStrings) {
+                if ($text -match [regex]::Escape($ds)) {
+                    $detectionsCount++
+                    Write-Host "     [X] ¡DOOMSDAY STRING DETECTADA EN PREFETCH! Archivo: $($sysFile.Name) [Coincidencia: $ds]" -ForegroundColor Red
                 }
             }
+        } catch {}
+    }
+
+    # Escaneo directo de módulos en procesos Java activos
+    $javaProc = Get-Process -Name "javaw", "java" -ErrorAction SilentlyContinue
+    if ($javaProc) {
+        foreach ($p in $javaProc) {
+            try {
+                foreach ($mod in $p.Modules.ModuleName) {
+                    if ($mod -match "doomsday|jnativehook|dooms") {
+                        $detectionsCount++
+                        Write-Host "     [X] ¡DOOMSDAY INYECTADO EN PROCESO JAVA! PID: $($p.Id) | Módulo: $mod" -ForegroundColor Red
+                    }
+                }
+            } catch {}
         }
     }
 
-    if ($totalDetections -eq 0) {
-        Write-Host "     [+] No se detectó Doomsday Client en los rastros analizados." -ForegroundColor Green
+    Write-Host "     ----------------------------------------------------------------" -ForegroundColor DarkGray
+    if ($detectionsCount -gt 0) {
+        Write-Host "     [X] ¡DOOMSDAY CLIENT CONFIRMADO ($detectionsCount coincidencias)!" -ForegroundColor Red
+        Write-Host "     [!] Acción requerida: Proceder a banear por Hacks in SS." -ForegroundColor Red
     } else {
-        Write-Host ""
-        Write-Host "     [X] ¡DOOMSDAY CLIENT CONFIRMADO! Proceder con baneo por Hacks in SS." -ForegroundColor Red
+        Write-Host "     [+] No se detectaron rastros de Doomsday Client en este equipo." -ForegroundColor Green
     }
 
     Pause-Scanner
 }
 
 # ============================================================
-# MÓDULO 3: INTERVENCIÓN RÁPIDA (PREFETCH DE HOY CON AUTOCLICK Y JAVA)
+# MÓDULO 3: INTERVENCIÓN RÁPIDA (PREFETCH DE HOY)
 # ============================================================
 function Start-SystemScan {
     Show-Header "INTERVENCIÓN RÁPIDA (PREFETCH DE HOY 07/09/2026)"
