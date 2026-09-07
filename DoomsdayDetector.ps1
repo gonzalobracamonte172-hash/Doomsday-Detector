@@ -8,7 +8,7 @@ chcp 65001 > $null
 
 $script:DefaultModsPath = "$env:APPDATA\.minecraft\mods"
 
-# Base de datos ampliada (Se añadió autototem, totem, dooms, etc.)
+# Base de datos ampliada (Se borró "doomsday" y "dooms" de la lista como se solicitó)
 $script:IllegalKeywords = @(
     "antighosttotem", "fasttotem", "totemhelper", "autototem", "totem", "switchtotems",
     "acurateblock", "fastplace", "attacktroughgrass", "periodicattack", "toroautoattack",
@@ -19,13 +19,13 @@ $script:IllegalKeywords = @(
     "marrowcrystal", "anchoroptimizer", "quickelytra", "clickcrystals",
     "radarbro", "zansmap", "voxelmap", "xaerosmap",
     "aimbot", "killaura", "reach", "fly", "scaffold", "criticals", "jclicker", "ghostclicker",
-    "doomsday", "dooms", "meteor", "wurst", "aristois", "bleachhack", "mathax", "liquidbounce", 
+    "meteor", "wurst", "aristois", "bleachhack", "mathax", "liquidbounce", 
     "raven", "vape", "novoline", "flux", "impact", "inertia", "kami", "krypton"
 )
 
 $script:DoomsdayStrings = @(
     "lYgKfQhaCkHofBf", "?WHt4Y", "!hi!kGD@<nS", "%#ksghCP$NIS7$EQuX",
-    "doomsday", "jnativehook"
+    "jnativehook"
 )
 
 # ============================================================
@@ -104,7 +104,7 @@ function Show-DetectionBox {
 }
 
 # ============================================================
-# MÓDULO 1: ANÁLISIS DE MODS
+# MÓDULO 1: ANÁLISIS DE MODS (INTACTO COMO PEDISTE)
 # ============================================================
 function Start-FullModScan {
     Show-Header "ANÁLISIS GENERAL DE MODS (.MINECRAFT\MODS)"
@@ -118,6 +118,7 @@ function Start-FullModScan {
     $files = @(Get-ChildItem -LiteralPath $modsPath -File -ErrorAction SilentlyContinue)
     Write-Host "     [*] Analizando $($files.Count) archivos en busca de firmas y nombres ilegales...`n" -ForegroundColor White
 
+    $javaProc = Get-Process -Name "javaw", "java" -ErrorAction SilentlyContinue
     $hacksEncontrados = [System.Collections.Generic.List[string]]::new()
 
     foreach ($file in $files) {
@@ -133,14 +134,14 @@ function Start-FullModScan {
             }
         }
 
-        # 2. Búsqueda Profunda (Interior del archivo - Para Doomsday renombrado)
+        # 2. Búsqueda Profunda (Interior del archivo)
         if (-not $isIllegal -and ($file.Extension -eq ".jar" -or $file.Extension -eq ".zip")) {
             $bytes = Get-SafeBytes -Path $file.FullName
             if ($null -ne $bytes) {
                 $contentStr = [System.Text.Encoding]::ASCII.GetString($bytes)
                 foreach ($ds in $script:DoomsdayStrings) {
                     if ($contentStr.Contains($ds)) {
-                        $isIllegal = $true; $motivo = "Firma Doomsday Oculta"
+                        $isIllegal = $true; $motivo = "Firma Oculta"
                         break
                     }
                 }
@@ -182,7 +183,7 @@ function Start-DoomsdayMemoryScan {
                     $detectado = $false
                     
                     # Chequeo de nombres de módulos
-                    if ($modName -match "doomsday|dooms|jnativehook|meteor|vape") {
+                    if ($modName -match "jnativehook|meteor|vape") {
                         $inyecciones.Add("Módulo Ilegal: $modName (PID: $($p.Id))")
                         $detectado = $true
                     }
@@ -196,7 +197,7 @@ function Start-DoomsdayMemoryScan {
                                 $text = [System.Text.Encoding]::ASCII.GetString($bytes)
                                 foreach ($ds in $script:DoomsdayStrings) {
                                     if ($text.Contains($ds)) {
-                                        $inyecciones.Add("Firma Dooms en: $modName")
+                                        $inyecciones.Add("Firma Hack en: $modName")
                                         $detectado = $true
                                         break
                                     }
@@ -216,7 +217,7 @@ function Start-DoomsdayMemoryScan {
 }
 
 # ============================================================
-# MÓDULO 3: PREFETCH DEL DÍA (COLORES CORREGIDOS)
+# MÓDULO 3: PREFETCH DEL DÍA (MUESTRA TODO LO DE HOY, JAVA VERDE, AUTOCLICK ROJO)
 # ============================================================
 function Start-SystemScan {
     $todayStr = (Get-Date).ToString("yyyy-MM-dd")
@@ -229,13 +230,15 @@ function Start-SystemScan {
         $pfFiles = @(Get-ChildItem -Path $prefetchPath -Filter "*.pf" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending)
         $encontradosHoy = 0
 
+        Write-Host "     [*] Mostrando toda la actividad registrada hoy en Prefetch:`n" -ForegroundColor Cyan
+
         foreach ($pf in $pfFiles) {
             if ($pf.LastWriteTime.ToString("yyyy-MM-dd") -eq $todayStr) {
                 $encontradosHoy++
                 $pName = $pf.Name.ToLower()
 
-                # ROJO: Hacks, Autoclickers y Totem
-                if ($pName -match "click|autoclick|macro|jclicker|ghostclicker|meteor|totem|autototem|dooms") {
+                # ROJO: Hacks, Autoclickers y Totem (Sin dooms)
+                if ($pName -match "click|autoclick|macro|jclicker|ghostclicker|meteor|totem|autototem") {
                     Write-Host "     [!] [HACK / CLICKER] $($pf.Name) | $($pf.LastWriteTime)" -ForegroundColor Red
                     $hallazgosPrefetch.Add("$($pf.Name) (Hack/Clicker)")
                 } 
@@ -243,10 +246,9 @@ function Start-SystemScan {
                 elseif ($pName -like "*java*") {
                     Write-Host "     [+] [JAVA EJECUTADO] $($pf.Name) | $($pf.LastWriteTime)" -ForegroundColor Green
                 } 
-                # GRIS: Resto de procesos
+                # GRIS: Resto de procesos de hoy (DESCOMENTADO)
                 else {
-                    # Solo imprimimos algunos para no saturar la pantalla (o puedes descomentarlo)
-                    # Write-Host "     [i] [PROCESO] $($pf.Name) | $($pf.LastWriteTime)" -ForegroundColor Gray
+                    Write-Host "     [i] [PROCESO] $($pf.Name) | $($pf.LastWriteTime)" -ForegroundColor Gray
                 }
             }
         }
@@ -274,7 +276,7 @@ function Start-FullDiskScan {
         if (Test-Path $path) {
             # Se excluyen carpetas de sistema profundas para no demorar horas
             $files = Get-ChildItem -Path $path -Recurse -File -Include "*.jar","*.exe","*.dll" -ErrorAction SilentlyContinue | Where-Object {
-                $_.Name -match "doomsday|clicker|autoclick|ghost|meteor|wurst|aristois|vape|raven|krypton|totem"
+                $_.Name -match "clicker|autoclick|ghost|meteor|wurst|aristois|vape|raven|krypton|totem"
             }
             foreach ($f in $files) {
                 Write-Host "     [!] Hack Oculto: $($f.Name)" -ForegroundColor Red
@@ -299,7 +301,7 @@ function Show-MainMenu {
             Write-Host "     ║               MODO: INTERVENCIÓN Y AUDITORÍA                 ║" -ForegroundColor White
             Write-Host "     ╚══════════════════════════════════════════════════════════════╝" -ForegroundColor DarkRed
             Write-Host "`n       [1] Analizar Mods (.minecraft\mods)       [7] Servicios Windows (Omitido)" -ForegroundColor White
-            Write-Host "       [2] Detección Profunda Doomsday             [8] Análisis DLLs (Omitido)" -ForegroundColor Yellow
+            Write-Host "       [2] Detección Profunda Hacks                [8] Análisis DLLs (Omitido)" -ForegroundColor Yellow
             Write-Host "       [3] Intervención Rápida (Prefetch Hoy)      [9] Ver Hallazgos (Omitido)" -ForegroundColor White
             Write-Host "       [4] Análisis Papelera (Omitido)            [10] Auditoría Macros (Omitido)" -ForegroundColor White
             Write-Host "       [5] Killer Screen (Omitido)                [11] Análisis Completo del Disco" -ForegroundColor Cyan
