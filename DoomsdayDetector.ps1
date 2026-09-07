@@ -3,7 +3,7 @@ chcp 65001 > $null
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 # ============================================================
-# EL SOMBRIO IF - FORENSIC SCANNER (MASTER V4 - FULL SUITE)
+# EL SOMBRIO IF - FORENSIC SCANNER (MASTER V5 - SS HUB)
 # ============================================================
 
 $script:DefaultModsPath = "$env:APPDATA\.minecraft\mods"
@@ -88,7 +88,7 @@ if (-not ([System.Management.Automation.PSTypeName]'NtdllDecompressor').Type) {
 function Show-Banner {
     Clear-Host
     Write-Host "`n                    Made by zedoon (aka Yaz) @ Mars MC SS team & RL forensics" -ForegroundColor Cyan
-    Write-Host "                    Doomsday Client Scanner v1.8 (Payload & BAM)" -ForegroundColor Cyan
+    Write-Host "                    Doomsday Client Scanner v1.9 (Hub de Herramientas SS)" -ForegroundColor Cyan
     Write-Host ""
 }
 
@@ -424,33 +424,53 @@ function Start-DllScan {
 }
 
 # ============================================================
-# [OPCION 9] EJECUTAR JOURNALTRACE
+# [OPCION 9] HUB DE HERRAMIENTAS SS (DESCARGAS)
 # ============================================================
-function Start-JournalTrace {
-    Show-Header "ANÁLISIS DE USN JOURNAL (JOURNALTRACE)"
-    if (-not (Test-Administrator)) { Write-Host "     [!] Se requiere Administrador."; Pause-Scanner; return }
+function Start-SSToolsHub {
+    Show-Header "HUB DE HERRAMIENTAS SS (APLICACIONES Y DESCARGAS)"
+    Write-Host "     [*] Colección de herramientas de ScreenShare y Forense..." -ForegroundColor Cyan
+    Write-Host ""
 
-    $url = "https://github.com/ponei/JournalTrace/releases/download/1.0/JournalTrace.exe"
-    $exePath = "$env:TEMP\JournalTrace.exe"
+    $tools = @(
+        [PSCustomObject]@{ Id=1; Name="AnyDesk"; Url="https://anydesk.com/es/downloads/thank-you?dv=win_exe"; Icon="🖥️" }
+        [PSCustomObject]@{ Id=2; Name="JournalTrace"; Url="https://github.com/ponei/JournalTrace/releases/download/1.0/JournalTrace.exe"; Icon="▶" }
+        [PSCustomObject]@{ Id=3; Name="Echo Journal Trace"; Url="https://dl.echo.ac/tool/journal"; Icon="▶" }
+        [PSCustomObject]@{ Id=4; Name="Process Hacker"; Url="https://sourceforge.net/projects/processhacker/files/processhacker2/processhacker-2.39-setup.exe/download"; Icon="✦" }
+        [PSCustomObject]@{ Id=5; Name="System Informer"; Url="https://sourceforge.net/projects/systeminformer/files/latest/download"; Icon="✦" }
+        [PSCustomObject]@{ Id=6; Name="WinPrefetchView"; Url="https://www.nirsoft.net/utils/winprefetchview-x64.zip"; Icon="📜" }
+        [PSCustomObject]@{ Id=7; Name="Everything"; Url="https://www.voidtools.com/Everything-1.4.1.1026.x86-Setup.exe"; Icon="🔎" }
+        [PSCustomObject]@{ Id=8; Name="Asistente De Recuva"; Url="https://www.ccleaner.com/es-es/recuva/download/standard"; Icon="🗑" }
+        [PSCustomObject]@{ Id=9; Name="PreviousFilesRecovery"; Url="https://www.nirsoft.net/utils/previousfilesrecovery-x64.zip"; Icon="🗑" }
+        [PSCustomObject]@{ Id=10; Name="ExecutedProgramsList"; Url="https://www.nirsoft.net/utils/executedprogramslist.zip"; Icon="➤" }
+        [PSCustomObject]@{ Id=11; Name="UninstallView"; Url="https://www.nirsoft.net/utils/uninstallview-x64.zip"; Icon="➤" }
+        [PSCustomObject]@{ Id=12; Name="BrowserDownloadsView"; Url="https://www.majorgeeks.com/mg/get/browserdownloadsview,2.html"; Icon="➤" }
+        [PSCustomObject]@{ Id=13; Name="LastActivityView"; Url="https://www.nirsoft.net/utils/lastactivityview.zip"; Icon="➤" }
+        [PSCustomObject]@{ Id=14; Name="UsbDeview Viewer"; Url="https://dl.echo.ac/tool/usb"; Icon="➤" }
+        [PSCustomObject]@{ Id=15; Name="Ocean Anticheat SS"; Url="https://anticheat.ac/download/"; Icon="⚡" }
+        [PSCustomObject]@{ Id=16; Name="Ocean Anticheat PIN"; Url="https://anticheat.ac/login/"; Icon="⚡" }
+        [PSCustomObject]@{ Id=17; Name="Echo Anticheat"; Url="https://echo.ac/free"; Icon="⚡" }
+    )
 
-    if (-not (Test-Path $exePath)) {
-        Write-Host "     [*] Descargando JournalTrace desde GitHub..." -ForegroundColor Cyan
-        try {
-            Invoke-WebRequest -Uri $url -OutFile $exePath -UseBasicParsing
-            Write-Host "     [+] Descarga completada." -ForegroundColor Green
-        } catch {
-            Write-Host "     [!] Error de descarga: $($_.Exception.Message)" -ForegroundColor Red
-            Pause-Scanner
-            return
-        }
+    foreach ($t in $tools) {
+        $idPad = $t.Id.ToString().PadLeft(2, ' ')
+        Write-Host "     [$idPad] $($t.Icon) $($t.Name)" -ForegroundColor White
+        Write-Host "          $($t.Url)" -ForegroundColor DarkGray
     }
 
-    Write-Host "     [*] Ejecutando JournalTrace en esta consola...`n" -ForegroundColor Yellow
-    try {
-        $process = Start-Process -FilePath $exePath -NoNewWindow -Wait -PassThru
-        Write-Host "`n     [✔] Ejecución finalizada." -ForegroundColor Green
-    } catch {}
-    Pause-Scanner
+    Write-Host "`n     [0] Regresar al Menú Principal" -ForegroundColor Red
+    
+    while ($true) {
+        $choice = (Read-Host "`n     Ingresa el número para abrir el enlace en tu navegador (o 0 para salir)").Trim()
+        if ($choice -eq "0") { break }
+        
+        $selected = $tools | Where-Object { $_.Id.ToString() -eq $choice }
+        if ($selected) {
+            Write-Host "     [+] Abriendo $($selected.Name) en el navegador..." -ForegroundColor Green
+            Start-Process $selected.Url
+        } else {
+            Write-Host "     [!] Opción inválida. Intenta nuevamente." -ForegroundColor Red
+        }
+    }
 }
 
 # ============================================================
@@ -461,7 +481,7 @@ function Start-RemoteScript {
     if (-not (Test-Administrator)) { Write-Host "     [!] Se requiere Administrador."; Pause-Scanner; return }
 
     # ==============================================================================
-    # REEMPLAZA "TU_ENLACE_COMPLETO_AQUI" CON TU ENLACE RAW DE GITHUB
+    # REEMPLAZA ESTE ENLACE CON TU ENLACE RAW DE GITHUB
     # ==============================================================================
     $urlRawGithub = "https://raw.githubusercontent.com/TU_ENLACE_COMPLETO_AQUI"
     
@@ -470,11 +490,8 @@ function Start-RemoteScript {
     Write-Host "     [!] Lanzando CMD en modo Administrador...`n" -ForegroundColor Yellow
 
     try {
-        # Armamos el comando CMD para que invoque PowerShell de forma silenciosa, haga bypass de políticas y ejecute el payload
         $cmdArgs = "/k powershell Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass && powershell Invoke-Expression (Invoke-RestMethod '$urlRawGithub')"
-        
         Start-Process -FilePath "cmd.exe" -ArgumentList $cmdArgs -Verb RunAs
-        
         Write-Host "     [+] La ventana de comandos (CMD) se abrió correctamente." -ForegroundColor Green
         Write-Host "     [i] Revisa la nueva ventana para interactuar con tu script." -ForegroundColor Green
     } catch {
@@ -524,13 +541,13 @@ function Show-MainMenu {
             Write-Host "     ╚══════════════════════════════════════════════════════════════╝" -ForegroundColor DarkRed
             Write-Host "`n       [1] Analizar Mods (.minecraft\mods)       [7] Servicios Windows" -ForegroundColor White
             Write-Host "       [2] Detección Profunda Hacks                [8] Análisis DLLs Modificadas" -ForegroundColor Yellow
-            Write-Host "       [3] Intervención Rápida (Prefetch/BAM)      [9] Ejecutar JournalTrace" -ForegroundColor White
+            Write-Host "       [3] Intervención Rápida (Prefetch/BAM)      [9] Hub de Herramientas SS (Descargas)" -ForegroundColor White
             Write-Host "       [4] Análisis Papelera de Reciclaje         [10] Ejecutar Payload (GitHub)" -ForegroundColor White
             Write-Host "       [5] Auditoría de Macros                    [11] Análisis Completo del Disco" -ForegroundColor Cyan
             Write-Host "       [6] Killer Screen (Diff)                   [12] Salir de la Aplicación" -ForegroundColor Red
             Write-Host "`n     ----------------------------------------------------------------" -ForegroundColor DarkGray
             
-            $option = Read-Host "`n     Selecciona una opción [1-12]"
+            $option = (Read-Host "`n     Selecciona una opción [1-12]").Trim()
             switch ($option) {
                 "1" { Start-FullModScan }
                 "2" { Start-DoomsdayMemoryScan }
@@ -540,7 +557,7 @@ function Show-MainMenu {
                 "6" { Start-DiffKiller }
                 "7" { Show-WindowsServices }
                 "8" { Start-DllScan }
-                "9" { Start-JournalTrace }
+                "9" { Start-SSToolsHub }
                 "10"{ Start-RemoteScript }
                 "11"{ Start-FullDiskScan }
                 "12"{ Clear-Host; Write-Host "`n     ¡Hasta luego, Joaquín!`n" -ForegroundColor Red; return }
