@@ -3,13 +3,12 @@ chcp 65001 > $null
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 # ============================================================
-# EL SOMBRIO IF - FORENSIC SCANNER (MASTER V12 - CLEAN UI)
+# EL SOMBRIO IF - FORENSIC SCANNER (MASTER V14 - HOLLOW KNIGHT EDITION)
 # ============================================================
 
 $script:DefaultModsPath = "$env:APPDATA\.minecraft\mods"
 $script:FirstRun = $true
 
-# Base de datos (Sin doomsday para nombres)
 $script:IllegalKeywords = @(
     "antighosttotem", "fasttotem", "totemhelper", "autototem", "totem", "switchtotems",
     "acurateblock", "fastplace", "attacktroughgrass", "periodicattack", "toroautoattack",
@@ -24,23 +23,78 @@ $script:IllegalKeywords = @(
     "raven", "vape", "novoline", "flux", "impact", "inertia", "kami", "krypton"
 )
 
-# Firmas de Bytes Internos
 $script:DoomsdayStrings = @(
-    "lYgKfQhaCkHofBf", "?WHt4Y", "!hi!kGD@<nS", "%#ksghCP$NIS7$EQuX",
-    "jnativehook"
+    "lYgKfQhaCkHofBf", "?WHt4Y", "!hi!kGD@<nS", "%#ksghCP$NIS7$EQuX", "jnativehook"
 )
 
 $script:WindowsServices = @("dps", "appinfo", "pcasvc", "eventlog", "sysmain", "dusmsvc", "bam")
 
 # ============================================================
+# MOTOR SOMBRIO DECOMPRESSOR SEGURO
+# ============================================================
+if (-not ([System.Management.Automation.PSTypeName]'SombrioDecompressor').Type) {
+    try {
+        Add-Type -TypeDefinition @"
+        using System;
+        using System.Runtime.InteropServices;
+        public class SombrioDecompressor {
+            [DllImport("ntdll.dll")]
+            public static extern uint RtlDecompressBufferEx(ushort CompressionFormat, byte[] UncompressedBuffer, int UncompressedBufferSize, byte[] CompressedBuffer, int CompressedBufferSize, out int FinalUncompressedSize, IntPtr WorkSpace);
+            [DllImport("ntdll.dll")]
+            public static extern uint RtlGetCompressionWorkSpaceSize(ushort CompressionFormat, out uint CompressBufferWorkSpaceSize, out uint CompressFragmentWorkSpaceSize);
+            public static byte[] Decompress(byte[] compressed) {
+                if (compressed == null || compressed.Length < 8) return null;
+                if (compressed[0] != 0x4D || compressed[1] != 0x41 || compressed[2] != 0x4D) return null;
+                int uncompSize = BitConverter.ToInt32(compressed, 4);
+                uint wsComp, wsFrag;
+                if (RtlGetCompressionWorkSpaceSize(4, out wsComp, out wsFrag) != 0) return null;
+                IntPtr workspace = Marshal.AllocHGlobal((int)wsFrag);
+                byte[] result = new byte[uncompSize];
+                try {
+                    int finalSize;
+                    byte[] compData = new byte[compressed.Length - 8];
+                    Array.Copy(compressed, 8, compData, 0, compData.Length);
+                    if (RtlDecompressBufferEx(4, result, uncompSize, compData, compData.Length, out finalSize, workspace) != 0) return null;
+                    return result;
+                } finally { Marshal.FreeHGlobal(workspace); }
+            }
+        }
+"@
+    } catch { }
+}
+
+# ============================================================
+# LECTOR DE ARCHIVOS BLINDADO CON DECOMPRESIÓN AUTOMÁTICA
+# ============================================================
+function Get-SafeBytes {
+    param([string]$Path)
+    try { $bytes = [System.IO.File]::ReadAllBytes($Path) } 
+    catch {
+        try {
+            $tempFile = "$env:TEMP\sombrio_scan_$([guid]::NewGuid()).tmp"
+            Copy-Item -Path $Path -Destination $tempFile -Force -ErrorAction Stop
+            $bytes = [System.IO.File]::ReadAllBytes($tempFile)
+            Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
+        } catch { return $null }
+    }
+    
+    # Auto-descompresión si es MAM
+    if ($null -ne $bytes -and $bytes.Length -ge 8) {
+        if ($bytes[0] -eq 0x4D -and $bytes[1] -eq 0x41 -and $bytes[2] -eq 0x4D) {
+            if (([System.Management.Automation.PSTypeName]'SombrioDecompressor').Type) {
+                $decomp = [SombrioDecompressor]::Decompress($bytes)
+                if ($null -ne $decomp) { return $decomp }
+            }
+        }
+    }
+    return $bytes
+}
+
+# ============================================================
 # ANIMACIONES Y EFECTOS VISUALES
 # ============================================================
 function Invoke-Typewriter {
-    param(
-        [string]$Text,
-        [int]$Speed = 15,
-        [string]$Color = "White"
-    )
+    param([string]$Text, [int]$Speed = 15, [string]$Color = "White")
     foreach ($char in $Text.ToCharArray()) {
         Write-Host $char -NoNewline -ForegroundColor $Color
         Start-Sleep -Milliseconds $Speed
@@ -49,23 +103,42 @@ function Invoke-Typewriter {
 }
 
 function Show-BootAnimation {
-    Clear-Host
-    $bootMessages = @(
-        "Inicializando EL SOMBRIO FORENSIC FRAMEWORK...",
-        "Cargando módulos de descompresión NT...",
-        "Verificando integridad del sistema...",
-        "Bypass de bloqueos de archivo activado...",
-        "Estableciendo entorno de terminal segura..."
-    )
-    
-    Write-Host "`n"
-    foreach ($msg in $bootMessages) {
-        Write-Host " [System] " -NoNewline -ForegroundColor DarkGray
-        Invoke-Typewriter -Text $msg -Speed 20 -Color Cyan
-        Start-Sleep -Milliseconds 150
+    $hk1 = @"
+               ,-.
+              / \ \
+             /   \ \
+             | ()()|
+              \ -- /
+               |__|
+              /|  |\
+             / |__| \
+               /  \
+              /    \
+"@
+    $hk2 = @"
+                 ,-.
+                / \ \
+               /   \ \
+               | ()()|
+                \ -- /
+                 |__|
+                 /||\
+                |/||\|
+                 /  |
+                /   |
+"@
+    for ($i=0; $i -lt 5; $i++) {
+        Clear-Host
+        Write-Host "`n$hk1`n" -ForegroundColor DarkGray
+        Write-Host " [System] Inicializando EL SOMBRIO FORENSIC FRAMEWORK..." -ForegroundColor Cyan
+        Start-Sleep -Milliseconds 250
+        
+        Clear-Host
+        Write-Host "`n$hk2`n" -ForegroundColor DarkGray
+        Write-Host " [System] Cargando submódulos de análisis en memoria..." -ForegroundColor Cyan
+        Start-Sleep -Milliseconds 250
     }
-    
-    Write-Host "`n [OK] TODOS LOS SISTEMAS OPERATIVOS.`n" -ForegroundColor Green
+    Write-Host "`n [OK] INTERFAZ LISTA. MÓDULOS CARGADOS.`n" -ForegroundColor Green
     Start-Sleep -Milliseconds 600
 }
 
@@ -98,7 +171,7 @@ function Show-Header {
 
 function Pause-Scanner {
     Write-Host "`n"
-    Invoke-Typewriter "     [ Presiona ENTER para regresar al comando principal ]" -Speed 10 -Color DarkGray
+    Invoke-Typewriter "     [ Presiona ENTER para regresar al menú principal ]" -Speed 10 -Color DarkGray
     Read-Host | Out-Null
 }
 
@@ -118,54 +191,6 @@ function Show-DetectionBox {
         }
     }
     Write-Host "     ╚══════════════════════════════════════════════════════════════╝" -ForegroundColor Red
-}
-
-# ============================================================
-# FUNCIONES BASE FORENSES
-# ============================================================
-function Get-SafeBytes {
-    param([string]$Path)
-    try { return [System.IO.File]::ReadAllBytes($Path) } 
-    catch {
-        try {
-            $tempFile = "$env:TEMP\sombrio_scan_$([guid]::NewGuid()).tmp"
-            Copy-Item -Path $Path -Destination $tempFile -Force -ErrorAction Stop
-            $bytes = [System.IO.File]::ReadAllBytes($tempFile)
-            Remove-Item $tempFile -Force -ErrorAction SilentlyContinue
-            return $bytes
-        } catch { return $null }
-    }
-}
-
-if (-not ([System.Management.Automation.PSTypeName]'NtdllDecompressor').Type) {
-    try {
-        Add-Type -TypeDefinition @"
-        using System;
-        using System.Runtime.InteropServices;
-        public class NtdllDecompressor {
-            [DllImport("ntdll.dll")]
-            public static extern uint RtlDecompressBufferEx(ushort CompressionFormat, byte[] UncompressedBuffer, int UncompressedBufferSize, byte[] CompressedBuffer, int CompressedBufferSize, out int FinalUncompressedSize, IntPtr WorkSpace);
-            [DllImport("ntdll.dll")]
-            public static extern uint RtlGetCompressionWorkSpaceSize(ushort CompressionFormat, out uint CompressBufferWorkSpaceSize, out uint CompressFragmentWorkSpaceSize);
-            public static byte[] Decompress(byte[] compressed) {
-                if (compressed == null || compressed.Length < 8) return null;
-                if (compressed[0] != 0x4D || compressed[1] != 0x41 || compressed[2] != 0x4D) return null;
-                int uncompSize = BitConverter.ToInt32(compressed, 4);
-                uint wsComp, wsFrag;
-                if (RtlGetCompressionWorkSpaceSize(4, out wsComp, out wsFrag) != 0) return null;
-                IntPtr workspace = Marshal.AllocHGlobal((int)wsFrag);
-                byte[] result = new byte[uncompSize];
-                try {
-                    int finalSize;
-                    byte[] compData = new byte[compressed.Length - 8];
-                    Array.Copy(compressed, 8, compData, 0, compData.Length);
-                    if (RtlDecompressBufferEx(4, result, uncompSize, compData, compData.Length, out finalSize, workspace) != 0) return null;
-                    return result;
-                } finally { Marshal.FreeHGlobal(workspace); }
-            }
-        }
-"@
-    } catch { }
 }
 
 function Test-Administrator { return ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator) }
@@ -203,55 +228,30 @@ function Start-FullModScan {
 }
 
 # ============================================================
-# [OPCION 2] DETECCIÓN PROFUNDA (JAVA MEMORY + BARRA DE CARGA)
+# [OPCION 2] ZEDOON DOOMSDAY DETECTOR (SCRIPT GITHUB)
 # ============================================================
 function Start-DoomsdayMemoryScan {
-    Show-Header "DETECCIÓN PROFUNDA (TODOS LOS PROCESOS)"
-    Invoke-Typewriter "     [*] Analizando todos los procesos activos en memoria..." -Color Cyan
+    Show-Header "DETECCIÓN PROFUNDA (DOOMSDAY DETECTOR)"
+    if (-not (Test-Administrator)) { Write-Host "     [!] Se requiere Administrador."; Pause-Scanner; return }
+
+    Invoke-Typewriter "     [*] Inicializando motor de detección remoto de Zedoon..." -Color Cyan
     
-    $allProcs = Get-Process -ErrorAction SilentlyContinue
-    $totalProcs = $allProcs.Count
-    $inyecciones = [System.Collections.Generic.List[string]]::new()
-
-    for ($i = 0; $i -lt $totalProcs; $i++) {
-        $p = $allProcs[$i]
-        $porcentaje = [math]::Round((($i + 1) / $totalProcs) * 100)
+    try {
+        Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force -ErrorAction SilentlyContinue
+        $url = "https://raw.githubusercontent.com/zedoonvm1/powershell-scripts/refs/heads/main/DoomsDayDetector.ps1"
+        $scriptContent = Invoke-RestMethod -Uri $url -UseBasicParsing
         
-        Write-Progress -Activity "🔍 Rastreo Forense de Memoria" -Status "Escaneando: $($p.ProcessName).exe (PID: $($p.Id))" -PercentComplete $porcentaje
-
-        try {
-            $modules = $p.Modules | Select-Object ModuleName, FileName -ErrorAction SilentlyContinue
-            if ($modules) {
-                foreach ($mod in $modules) {
-                    $modName = $mod.ModuleName.ToLower(); $modPath = $mod.FileName
-                    
-                    if ($modName -match "jnativehook|meteor|vape|dooms") {
-                        $inyecciones.Add("Módulo Ilegal: $modName (PID: $($p.Id))")
-                        Write-Host "`n     [X] Inyección detectada en $($p.ProcessName): $modPath" -ForegroundColor Red
-                    }
-                    
-                    if ($p.ProcessName -match "java" -and $modPath -match "\.dll$|\.jar$") {
-                        $fileInfo = Get-Item $modPath -ErrorAction SilentlyContinue
-                        if ($fileInfo -and $fileInfo.Length -lt 25MB) {
-                            $bytes = Get-SafeBytes -Path $modPath
-                            if ($null -ne $bytes) {
-                                $text = [System.Text.Encoding]::ASCII.GetString($bytes)
-                                foreach ($ds in $script:DoomsdayStrings) {
-                                    if ($text.Contains($ds)) {
-                                        $inyecciones.Add("Firma Hack en: $modName")
-                                        Write-Host "`n     [X] Firma inyectada en $($p.ProcessName): $modPath" -ForegroundColor Red
-                                        break
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        } catch {}
+        Write-Host "     [+] Script cargado en memoria. Ejecutando..." -ForegroundColor Green
+        Start-Sleep -Seconds 1
+        
+        $scriptBlock = [ScriptBlock]::Create($scriptContent)
+        & $scriptBlock
+        
+        Write-Host "`n     [✔] Escaneo finalizado correctamente." -ForegroundColor Green
+    } catch { 
+        Write-Host "`n     [!] Error al inyectar el script: $($_.Exception.Message)" -ForegroundColor Red 
     }
-    Write-Progress -Activity "🔍 Rastreo Forense de Memoria" -Completed
-    Show-DetectionBox -Detections $inyecciones -Title "INYECCIONES Y HACKS FANTASMA"
+
     Pause-Scanner
 }
 
@@ -419,11 +419,11 @@ function Start-DllScan {
 }
 
 # ============================================================
-# [OPCION 9] HUB DE HERRAMIENTAS SS (SISTEMA CONTRA REDIRECTS)
+# [OPCION 9] HUB DE HERRAMIENTAS SS
 # ============================================================
 function Start-SSToolsHub {
     Show-Header "HUB DE HERRAMIENTAS SS (EJECUCIÓN Y DESCARGAS)"
-    Write-Host "     [*] Selecciona la herramienta para descargar o abrir en navegador:`n" -ForegroundColor Cyan
+    Write-Host "     [*] Las Apps (.exe) se descargarán y ejecutarán al instante.`n" -ForegroundColor Cyan
 
     $tools = @(
         [PSCustomObject]@{ Id=1; Name="System Informer"; Url="https://sourceforge.net/projects/systeminformer/files/latest/download"; Icon="✦" }
@@ -441,7 +441,6 @@ function Start-SSToolsHub {
         
         $selected = $tools | Where-Object { $_.Id.ToString() -eq $choice }
         if ($selected) {
-            # Si termina en .exe o download, intentamos descarga silenciosa.
             if ($selected.Url -match "\.exe$" -or $selected.Url -match "download$") {
                 Write-Host "     [*] Intentando descarga directa de $($selected.Name)..." -ForegroundColor Cyan
                 $exeName = ($selected.Name -replace '\s','_') + ".exe"
@@ -453,7 +452,6 @@ function Start-SSToolsHub {
                     Write-Host "     [+] Ejecutando $($selected.Name)..." -ForegroundColor Green
                     Start-Process $exePath -Wait
                 } catch { 
-                    # Contingencia para SourceForge u otros sitios que bloquean descargas directas
                     Write-Host "     [!] Descarga protegida por el servidor. Redirigiendo al navegador..." -ForegroundColor Yellow 
                     Start-Process $selected.Url
                 }
@@ -475,16 +473,15 @@ function Start-RemoteScript {
     Invoke-Typewriter "     [*] Selecciona el payload para inyectarlo directamente en memoria:`n" -Color Cyan
 
     $payloads = @(
-        [PSCustomObject]@{ Id=1; Name="Zedoon DoomsDayDetector"; Url="https://raw.githubusercontent.com/zedoonvm1/powershell-scripts/refs/heads/main/DoomsDayDetector.ps1" }
-        [PSCustomObject]@{ Id=2; Name="Lilith Services"; Url="https://raw.githubusercontent.com/praiselily/lilith-ps/refs/heads/main/Services.ps1" }
-        [PSCustomObject]@{ Id=3; Name="Lilith Service-Enabler"; Url="https://raw.githubusercontent.com/praiselily/lilith-ps/refs/heads/main/Service-Enabler.ps1" }
-        [PSCustomObject]@{ Id=4; Name="Ordiff Kill ScreenRecording"; Url="https://raw.githubusercontent.com/Orbdiff/powershell/refs/heads/main/kill-screen-processes.ps1" }
-        [PSCustomObject]@{ Id=5; Name="Lilith DoomsdayFinder"; Url="https://raw.githubusercontent.com/praiselily/lilith-ps/refs/heads/main/DoomsdayFinder.ps1" }
-        [PSCustomObject]@{ Id=6; Name="RedLotus BamParser"; Url="https://raw.githubusercontent.com/PureIntent/ScreenShare/main/RedLotusBam.ps1" }
-        [PSCustomObject]@{ Id=7; Name="Spouken BamParser"; Url="https://raw.githubusercontent.com/spokwn/powershells/refs/heads/main/bamparser.ps1" }
-        [PSCustomObject]@{ Id=8; Name="MeowTonynoh Mod Analyzer"; Url="https://raw.githubusercontent.com/MeowTonynoh/MeowModAnalyzer/main/MeowModAnalyzer.ps1" }
-        [PSCustomObject]@{ Id=9; Name="RedLotus Prefetch Integrity"; Url="https://raw.githubusercontent.com/bacanoicua/Screenshare/main/RedLotusPrefetchIntegrityAnalyzer.ps1" }
-        [PSCustomObject]@{ Id=10; Name="Florinyoq Bam Deleted Keys"; Url="https://raw.githubusercontent.com/Florinyoq/Screenshare/refs/heads/main/bam.ps1" }
+        [PSCustomObject]@{ Id=1; Name="Lilith Services"; Url="https://raw.githubusercontent.com/praiselily/lilith-ps/refs/heads/main/Services.ps1" }
+        [PSCustomObject]@{ Id=2; Name="Lilith Service-Enabler"; Url="https://raw.githubusercontent.com/praiselily/lilith-ps/refs/heads/main/Service-Enabler.ps1" }
+        [PSCustomObject]@{ Id=3; Name="Ordiff Kill ScreenRecording"; Url="https://raw.githubusercontent.com/Orbdiff/powershell/refs/heads/main/kill-screen-processes.ps1" }
+        [PSCustomObject]@{ Id=4; Name="Lilith DoomsdayFinder"; Url="https://raw.githubusercontent.com/praiselily/lilith-ps/refs/heads/main/DoomsdayFinder.ps1" }
+        [PSCustomObject]@{ Id=5; Name="RedLotus BamParser"; Url="https://raw.githubusercontent.com/PureIntent/ScreenShare/main/RedLotusBam.ps1" }
+        [PSCustomObject]@{ Id=6; Name="Spouken BamParser"; Url="https://raw.githubusercontent.com/spokwn/powershells/refs/heads/main/bamparser.ps1" }
+        [PSCustomObject]@{ Id=7; Name="MeowTonynoh Mod Analyzer"; Url="https://raw.githubusercontent.com/MeowTonynoh/MeowModAnalyzer/main/MeowModAnalyzer.ps1" }
+        [PSCustomObject]@{ Id=8; Name="RedLotus Prefetch Integrity"; Url="https://raw.githubusercontent.com/bacanoicua/Screenshare/main/RedLotusPrefetchIntegrityAnalyzer.ps1" }
+        [PSCustomObject]@{ Id=9; Name="Florinyoq Bam Deleted Keys"; Url="https://raw.githubusercontent.com/Florinyoq/Screenshare/refs/heads/main/bam.ps1" }
     )
 
     foreach ($p in $payloads) {
@@ -499,10 +496,12 @@ function Start-RemoteScript {
     if ($selected) {
         Write-Host "`n     [*] Extrayendo código crudo de '$($selected.Name)'..." -ForegroundColor Yellow
         try {
+            Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force -ErrorAction SilentlyContinue
             $scriptContent = Invoke-RestMethod -Uri $selected.Url -UseBasicParsing
-            Write-Host "     [+] Código cargado. Iniciando Bypass de Memoria..." -ForegroundColor Green
+            Write-Host "     [+] Código cargado. Iniciando Bypass de Memoria (ScriptBlock)..." -ForegroundColor Green
             Start-Sleep -Seconds 1
-            Invoke-Expression $scriptContent
+            $scriptBlock = [ScriptBlock]::Create($scriptContent)
+            & $scriptBlock
             Write-Host "`n     [✔] Proceso finalizado." -ForegroundColor Green
         } catch { 
             Write-Host "`n     [!] Falla en la inyección de script: $($_.Exception.Message)" -ForegroundColor Red 
@@ -576,24 +575,30 @@ function Start-WinRCommands {
 }
 
 # ============================================================
-# MENÚ PRINCIPAL
+# MENÚ PRINCIPAL ENCUADRADO
 # ============================================================
 function Show-MainMenu {
     if ($script:FirstRun) { Show-BootAnimation; $script:FirstRun = $false }
     while ($true) {
         try {
             Show-Banner
-            Write-Host "     ╔══════════════════════════════════════════════════════════════╗" -ForegroundColor DarkGray
-            Write-Host "     ║              [ MODULO CENTRAL DE INTERVENCION ]              ║" -ForegroundColor White
-            Write-Host "     ╚══════════════════════════════════════════════════════════════╝" -ForegroundColor DarkGray
-            Write-Host "`n       [1]  Analizar Mods (.minecraft\mods)      [8]  Análisis DLLs (1 MES)" -ForegroundColor White
-            Write-Host "       [2]  Detección RAM (Doomsday/Inyectados)  [9]  Hub Herramientas SS" -ForegroundColor Yellow
-            Write-Host "       [3]  Análisis Rápido (Prefetch/BAM)       [10] Hub Payloads (GitHub)" -ForegroundColor White
-            Write-Host "       [4]  Análisis Papelera de Reciclaje       [11] Análisis Completo Disco" -ForegroundColor Cyan
-            Write-Host "       [5]  Auditoría de Macros                  [12] Rutas Manuales (Win+R)" -ForegroundColor Magenta
-            Write-Host "       [6]  Killer Screen (Anti-Recorder)        [13] Salir de Framework" -ForegroundColor Red
-            Write-Host "       [7]  Servicios Windows" -ForegroundColor White
-            Write-Host "`n     ----------------------------------------------------------------" -ForegroundColor DarkGray
+            $cat = @"
+                                  /\_/\ 
+                                 ( o.o )
+                                  > ^ < 
+"@
+            Write-Host $cat -ForegroundColor Magenta
+            Write-Host "     ╔══════════════════════════════════════════════════════════════════════════╗" -ForegroundColor DarkGray
+            Write-Host "     ║               [ MODULO CENTRAL DE INTERVENCION Y ESCANEO ]               ║" -ForegroundColor Magenta
+            Write-Host "     ╠══════════════════════════════════════════════════════════════════════════╣" -ForegroundColor DarkGray
+            Write-Host "     ║ [ 1 ] Analizar Mods (.jar)         ║ [ 8 ] Análisis DLLs (1 MES)         ║" -ForegroundColor Cyan
+            Write-Host "     ║ [ 2 ] Doomsday Detector (Zedoon)   ║ [ 9 ] Hub Herramientas SS           ║" -ForegroundColor Cyan
+            Write-Host "     ║ [ 3 ] Análisis Prefetch/BAM        ║ [10 ] Hub Payloads (GitHub)         ║" -ForegroundColor Cyan
+            Write-Host "     ║ [ 4 ] Análisis Papelera            ║ [11 ] Análisis Completo Disco       ║" -ForegroundColor Cyan
+            Write-Host "     ║ [ 5 ] Auditoría de Macros          ║ [12 ] Rutas Manuales (Win+R)        ║" -ForegroundColor Cyan
+            Write-Host "     ║ [ 6 ] Killer Screen (Diff)         ║ [13 ] Salir de Framework            ║" -ForegroundColor Cyan
+            Write-Host "     ║ [ 7 ] Servicios Windows            ║                                     ║" -ForegroundColor Cyan
+            Write-Host "     ╚══════════════════════════════════════════════════════════════════════════╝" -ForegroundColor DarkGray
             
             $option = (Read-Host "`n     [ROOT] Selecciona un módulo [1-13]").Trim()
             switch ($option) {
