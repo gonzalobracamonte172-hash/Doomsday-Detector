@@ -3,7 +3,7 @@ chcp 65001 > $null
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 # ============================================================
-# EL SOMBRIO IF - FORENSIC SCANNER (MASTER V11 - CLEAN HUB)
+# EL SOMBRIO IF - FORENSIC SCANNER (MASTER V12 - CLEAN UI)
 # ============================================================
 
 $script:DefaultModsPath = "$env:APPDATA\.minecraft\mods"
@@ -419,11 +419,11 @@ function Start-DllScan {
 }
 
 # ============================================================
-# [OPCION 9] HUB DE HERRAMIENTAS SS (EJECUCIÓN NATIVA)
+# [OPCION 9] HUB DE HERRAMIENTAS SS (SISTEMA CONTRA REDIRECTS)
 # ============================================================
 function Start-SSToolsHub {
     Show-Header "HUB DE HERRAMIENTAS SS (EJECUCIÓN Y DESCARGAS)"
-    Write-Host "     [*] Las Apps (.exe) se descargarán y ejecutarán al instante.`n" -ForegroundColor Cyan
+    Write-Host "     [*] Selecciona la herramienta para descargar o abrir en navegador:`n" -ForegroundColor Cyan
 
     $tools = @(
         [PSCustomObject]@{ Id=1; Name="System Informer"; Url="https://sourceforge.net/projects/systeminformer/files/latest/download"; Icon="✦" }
@@ -441,17 +441,22 @@ function Start-SSToolsHub {
         
         $selected = $tools | Where-Object { $_.Id.ToString() -eq $choice }
         if ($selected) {
+            # Si termina en .exe o download, intentamos descarga silenciosa.
             if ($selected.Url -match "\.exe$" -or $selected.Url -match "download$") {
-                Write-Host "     [*] Descargando $($selected.Name) de forma segura..." -ForegroundColor Cyan
+                Write-Host "     [*] Intentando descarga directa de $($selected.Name)..." -ForegroundColor Cyan
                 $exeName = ($selected.Name -replace '\s','_') + ".exe"
                 $exePath = "$env:TEMP\$exeName"
                 try {
                     Write-Progress -Activity "Interceptando Payload" -Status $selected.Name
-                    Invoke-WebRequest -Uri $selected.Url -OutFile $exePath -UseBasicParsing
+                    Invoke-WebRequest -Uri $selected.Url -OutFile $exePath -UseBasicParsing -TimeoutSec 15
                     Write-Progress -Activity "Interceptando Payload" -Completed
                     Write-Host "     [+] Ejecutando $($selected.Name)..." -ForegroundColor Green
                     Start-Process $exePath -Wait
-                } catch { Write-Host "     [!] Error de descarga." -ForegroundColor Red }
+                } catch { 
+                    # Contingencia para SourceForge u otros sitios que bloquean descargas directas
+                    Write-Host "     [!] Descarga protegida por el servidor. Redirigiendo al navegador..." -ForegroundColor Yellow 
+                    Start-Process $selected.Url
+                }
             } else {
                 Write-Host "     [+] Abriendo ruta externa para $($selected.Name)..." -ForegroundColor Green
                 Start-Process $selected.Url
@@ -508,29 +513,7 @@ function Start-RemoteScript {
 }
 
 # ============================================================
-# [OPCION 11] EJECUTAR JOURNALTRACE AUTO
-# ============================================================
-function Start-JournalTrace {
-    Show-Header "ANÁLISIS DE USN JOURNAL (JOURNALTRACE)"
-    if (-not (Test-Administrator)) { Write-Host "     [!] Se requiere Administrador."; Pause-Scanner; return }
-    $url = "https://github.com/ponei/JournalTrace/releases/download/1.0/JournalTrace.exe"
-    $exePath = "$env:TEMP\JournalTrace.exe"
-    if (-not (Test-Path $exePath)) {
-        Write-Host "     [*] Descargando JournalTrace desde GitHub..." -ForegroundColor Cyan
-        try {
-            Write-Progress -Activity "Interceptando Payload" -Status "Descargando JournalTrace.exe"
-            Invoke-WebRequest -Uri $url -OutFile $exePath -UseBasicParsing
-            Write-Progress -Activity "Interceptando Payload" -Completed
-            Write-Host "     [+] Descarga completada." -ForegroundColor Green
-        } catch { Write-Host "     [!] Error de descarga." -ForegroundColor Red; Pause-Scanner; return }
-    }
-    Write-Host "     [*] Ejecutando rastreador en sub-proceso...`n" -ForegroundColor Yellow
-    try { Start-Process -FilePath $exePath -NoNewWindow -Wait -PassThru | Out-Null; Write-Host "`n     [✔] Ejecución finalizada." -ForegroundColor Green } catch {}
-    Pause-Scanner
-}
-
-# ============================================================
-# [OPCION 12] ANÁLISIS COMPLETO DEL DISCO
+# [OPCION 11] ANÁLISIS COMPLETO DEL DISCO
 # ============================================================
 function Start-FullDiskScan {
     Show-Header "ANÁLISIS COMPLETO DEL DISCO"
@@ -555,7 +538,7 @@ function Start-FullDiskScan {
 }
 
 # ============================================================
-# [OPCION 13] RUTAS DE ANÁLISIS MANUAL (WIN + R)
+# [OPCION 12] RUTAS DE ANÁLISIS MANUAL (WIN + R)
 # ============================================================
 function Start-WinRCommands {
     Show-Header "RUTAS DE ANÁLISIS MANUAL (WINDOWS + R)"
@@ -606,13 +589,13 @@ function Show-MainMenu {
             Write-Host "`n       [1]  Analizar Mods (.minecraft\mods)      [8]  Análisis DLLs (1 MES)" -ForegroundColor White
             Write-Host "       [2]  Detección RAM (Doomsday/Inyectados)  [9]  Hub Herramientas SS" -ForegroundColor Yellow
             Write-Host "       [3]  Análisis Rápido (Prefetch/BAM)       [10] Hub Payloads (GitHub)" -ForegroundColor White
-            Write-Host "       [4]  Análisis Papelera de Reciclaje       [11] Ejecutar JournalTrace" -ForegroundColor White
-            Write-Host "       [5]  Auditoría de Macros                  [12] Análisis Completo Disco" -ForegroundColor Cyan
-            Write-Host "       [6]  Killer Screen (Anti-Recorder)        [13] Rutas Manuales (Win+R)" -ForegroundColor Magenta
-            Write-Host "       [7]  Servicios Windows                    [14] Salir de Framework" -ForegroundColor Red
+            Write-Host "       [4]  Análisis Papelera de Reciclaje       [11] Análisis Completo Disco" -ForegroundColor Cyan
+            Write-Host "       [5]  Auditoría de Macros                  [12] Rutas Manuales (Win+R)" -ForegroundColor Magenta
+            Write-Host "       [6]  Killer Screen (Anti-Recorder)        [13] Salir de Framework" -ForegroundColor Red
+            Write-Host "       [7]  Servicios Windows" -ForegroundColor White
             Write-Host "`n     ----------------------------------------------------------------" -ForegroundColor DarkGray
             
-            $option = (Read-Host "`n     [ROOT] Selecciona un módulo [1-14]").Trim()
+            $option = (Read-Host "`n     [ROOT] Selecciona un módulo [1-13]").Trim()
             switch ($option) {
                 "1" { Start-FullModScan }
                 "2" { Start-DoomsdayMemoryScan }
@@ -624,10 +607,9 @@ function Show-MainMenu {
                 "8" { Start-DllScan }
                 "9" { Start-SSToolsHub }
                 "10"{ Start-RemoteScript }
-                "11"{ Start-JournalTrace }
-                "12"{ Start-FullDiskScan }
-                "13"{ Start-WinRCommands }
-                "14"{ Clear-Host; Invoke-Typewriter "`n     [!] CERRANDO CONEXIÓN. HASTA LUEGO, JOAQUÍN.`n" -Color Red; return }
+                "11"{ Start-FullDiskScan }
+                "12"{ Start-WinRCommands }
+                "13"{ Clear-Host; Invoke-Typewriter "`n     [!] CERRANDO CONEXIÓN. HASTA LUEGO, JOAQUÍN.`n" -Color Red; return }
                 default { Write-Host "`n     [!] Entrada no reconocida en el sistema." -ForegroundColor Red; Start-Sleep -Seconds 1 }
             }
         } catch {
