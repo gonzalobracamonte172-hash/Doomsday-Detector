@@ -3,7 +3,7 @@ chcp 65001 > $null
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 # ============================================================
-# EL SOMBRIO IF - FORENSIC SCANNER (MASTER V28 - FINAL UNIFIED)
+# EL SOMBRIO IF - FORENSIC SCANNER (MASTER V29 - PERFECT CENTER)
 # ============================================================
 
 $script:DefaultModsPath = "$env:APPDATA\.minecraft\mods"
@@ -468,7 +468,7 @@ function Start-WinRCommands {
 }
 
 # ============================================================
-# MENÚ PRINCIPAL PERFECTAMENTE CENTRADO Y SIN CORTES (MASTER V28)
+# MENÚ PRINCIPAL PERFECTAMENTE CENTRADO Y ALINEADO (MASTER V30)
 # ============================================================
 function Show-MainMenu {
 
@@ -531,27 +531,29 @@ function Show-MainMenu {
             Show-Banner
 
             $menuLines = @(
-                "╔═══════════════════════════════════════════════════════════════════════╗"
-                "║                     [ MODULO CENTRAL DE INTERVENCION ]                ║"
-                "╠═══════════════════════════════════════════════════════════════════════╣"
-                "║   [  1  ] Analizar Mods            [  8  ] Análisis DLLs (1 MES)    ║"
-                "║   [  2  ] Doomsday Detector        [  9  ] Hub Herramientas SS      ║"
-                "║   [  3  ] Análisis Prefetch/BAM      [ 10  ] Hub Payloads (GitHub)    ║"
-                "║   [  4  ] Análisis Papelera          [ 11  ] Análisis Completo Disco  ║"
-                "║   [  5  ] Auditoría de Macros        [ 12  ] Rutas Manuales (Win+R)   ║"
-                "║   [  6  ] Killer Screen (Diff)       [ 13  ] Salir de Framework       ║"
-                "║   [  7  ] Servicios Windows                                         ║"
-                "╚═══════════════════════════════════════════════════════════════════════╝"
+                "       ╔═══════════════════════════════════════════════════════════════════════╗"
+                "       ║                  [ MODULO CENTRAL DE INTERVENCION ]                   ║"
+                "       ╚═══════════════════════════════════════════════════════════════════════╝"
+                "                                                                                "
+                "       [  1  ] Analizar Mods            [  8  ] Análisis DLLs (1 MES)     "
+                "       [  2  ] Doomsday Detector        [  9  ] Hub Herramientas SS       "
+                "       [  3  ] Análisis Prefetch/BAM      [ 10  ] Hub Payloads (GitHub)     "
+                "       [  4  ] Análisis Papelera          [ 11  ] Análisis Completo Disco   "
+                "       [  5  ] Auditoría de Macros        [ 12  ] Rutas Manuales (Win+R)    "
+                "       [  6  ] Killer Screen (Diff)       [ 13  ] Salir de Framework        "
+                "       [  7  ] Servicios Windows                                      "
+                "                                                                                "
+                "       ─────────────────────────────────────────────────────────────────"
             )
 
-            $leftWidth = 73
+            $leftWidth = 79
             $gap = "    "
             $totalLines = [math]::Max($menuLines.Count, $sideGirl.Count)
 
             for ($i = 0; $i -lt $totalLines; $i++) {
 
                 if ($i -lt $menuLines.Count) {
-                    $left = "     " + $menuLines[$i]
+                    $left = $menuLines[$i]
                     Write-Host $left.PadRight($leftWidth) -NoNewline -ForegroundColor Blue
                 } else {
                     Write-Host (" " * $leftWidth) -NoNewline
@@ -575,10 +577,7 @@ function Show-MainMenu {
             }
 
             Write-Host ""
-            Write-Host "     ───────────────────────────────────────────────────────────────────" -ForegroundColor DarkGray
-            Write-Host ""
-
-            $option = (Read-Host "     [ROOT] Selecciona un módulo [1-13]").Trim()
+            $option = (Read-Host "       [ROOT] Selecciona un módulo [1-13]").Trim()
 
             switch ($option) {
                 "1"  { Start-FullModScan }
@@ -604,17 +603,17 @@ function Show-MainMenu {
                 "12" { Start-WinRCommands }
                 "13" { 
                     Clear-Host
-                    Invoke-Typewriter "`n     [!] CERRANDO CONEXIÓN. HASTA LUEGO, JOAQUÍN.`n" -Color Red
+                    Invoke-Typewriter "`n       [!] CERRANDO CONEXIÓN. HASTA LUEGO, JOAQUÍN.`n" -Color Red
                     return 
                 }
                 default { 
-                    Write-Host "`n     [!] Entrada no reconocida en el sistema." -ForegroundColor Red
+                    Write-Host "`n       [!] Entrada no reconocida en el sistema." -ForegroundColor Red
                     Start-Sleep -Seconds 1 
                 }
             }
         }
         catch {
-            Write-Host "`n     [!] Interrupción detectada. Forzando reinicio de interfaz." -ForegroundColor Red
+            Write-Host "`n       [!] Interrupción detectada. Forzando reinicio de interfaz." -ForegroundColor Red
             Start-Sleep -Seconds 2
         }
     }
