@@ -3,7 +3,7 @@ chcp 65001 > $null
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 # ============================================================
-# EL SOMBRIO IF - FORENSIC SCANNER (MASTER V14 - HOLLOW KNIGHT EDITION)
+# EL SOMBRIO IF - FORENSIC SCANNER (MASTER V17 - FURINA EDITION)
 # ============================================================
 
 $script:DefaultModsPath = "$env:APPDATA\.minecraft\mods"
@@ -63,9 +63,6 @@ if (-not ([System.Management.Automation.PSTypeName]'SombrioDecompressor').Type) 
     } catch { }
 }
 
-# ============================================================
-# LECTOR DE ARCHIVOS BLINDADO CON DECOMPRESIÓN AUTOMÁTICA
-# ============================================================
 function Get-SafeBytes {
     param([string]$Path)
     try { $bytes = [System.IO.File]::ReadAllBytes($Path) } 
@@ -78,7 +75,6 @@ function Get-SafeBytes {
         } catch { return $null }
     }
     
-    # Auto-descompresión si es MAM
     if ($null -ne $bytes -and $bytes.Length -ge 8) {
         if ($bytes[0] -eq 0x4D -and $bytes[1] -eq 0x41 -and $bytes[2] -eq 0x4D) {
             if (([System.Management.Automation.PSTypeName]'SombrioDecompressor').Type) {
@@ -103,42 +99,149 @@ function Invoke-Typewriter {
 }
 
 function Show-BootAnimation {
-    $hk1 = @"
-               ,-.
-              / \ \
-             /   \ \
-             | ()()|
-              \ -- /
-               |__|
-              /|  |\
-             / |__| \
-               /  \
-              /    \
-"@
-    $hk2 = @"
-                 ,-.
-                / \ \
-               /   \ \
-               | ()()|
-                \ -- /
-                 |__|
-                 /||\
-                |/||\|
-                 /  |
-                /   |
-"@
-    for ($i=0; $i -lt 5; $i++) {
+    # Arte ASCII - Furina
+    $furinaAscii = @'
+                                                     .::---:               ::
+                                                    =-..-::-*=            -+.   -+-
+                                                   -: =.     :+          :=+   ===
+                                                  :+ .*       =:        ===-::.==.
+                                                   -: +                :. ..:. -.=.     ..
+                                                    =--=       .....  =:   .=  ==+-   .:++.
+                                                     .-==.    =:...::-:    -.   :*-. :==-.
+                                                        -=-. .+       :=-     :-: .=:=.+.
+                                                          .:=---::::.   -=+:  .  .--.=.
+                                                       :----:  ::.  :=:   :=-:   -  :=:::.
+                                                     :-.:...::- :- ::::=:  -=.: :-.=-----+
+                                                    =. -: :..   . .:    ==  .-.  +-::+.
+                                                  --. =.  .   :    =:    *+  -+=:..:=:
+                                            :---::. -:  -   :+:  =  =:    ++  .+ ..---
+                                             .---::...-.  :-:=  .+   =    .==  --. ..++
+                                            ---:.   :. .--..-+  :=    --.   =+.  +.:-:-+
+                                            =..: :=--=+-===..-  -..: = :--:.:=-  .=. *+.
+                                            *.* -=  *-*..**=  : =..+.=:.   ..=.   .+ :*-
+                                            .--.+:  =-*.  .    :--@*=+=:.-=  :=    =:+:+
+                                              =:*:-. .+=     .    --.-=:  :-  +    -:=-
+                                              :.  ..=-  =-  :::    :-=-    .+=-    --+
+                                                   =-..  .-::..::--= ...-:-.-.     ==.
+                                                  .=: :. -+:::+-..+..+. -==.      :+
+                                                    ::=--=.---+- .-=:=.. ..       :
+                                               .:-::--=: :+:.--*--+=. .:=:::
+                                              =:-:..:.:.  -..-.... :.:  .  --
+                                          .-=-  +=:.=::: .+: .==:=.:-+      =:
+                                          =-:. .+ ..  .  .+-:  .-=.=:-     ..+:                   ::
+     ==::                              .--     .*  =  -=-.     .:-         :--=+          :-::  ---:  ----+=
+    .=::- =--                         --      : +.  --.    .-:::.    .-.      .--  .=:--::. .:-=. ..  :-=:.
+   :+:+ -=. -=                .   ::=-        =:.= .  . -=-:.       -= -=       :=.:*-.:    -:-:     :=:---:
+   #. *  .*. +              :--+::.        .-:.= +. .=-:==.       .=:   .=-      ::: --*.     =..:-:+=--======
+ :-:= .-- +.:--           :-=..*         :=-   +:- -: .-.-       :-.      =-        .=-.      ....      ..-:::
+ :-.:=: +.::-::-    ..::-:=:: =:..    ..-: .   --==-..= -.      :=         -+       ++:-:-..  .:-.
+  + .-*.:.*::.+:  :*:..     -.:.:-+=::..   +..:. .:.:+  +=     --  ....     =+:.   . ..: *:.--.
+  .:---.- =.+. .:: .=.        :.+--       -:  =-::  +. :+-     +.=--:.:+     :=-:::.     .-=.
+      ..-.+-+=-:    .+.      .*-+-        +:::..::-.+  :+      --..:  :-      .-::. ....::::::::::=-::::::.
+         --.::=::.  -:+   :::.....      ::-:-:==     -=:.=.   :-::-.  .:-        ..:::..          :.-::.  .:-.
+        =-..*=-=    -:+ ::.          :--. :=..==     --: .= .-- :=:--::.:=-.                          ..-:   :=
+        +.  := :+   ::..            .*  .=- :=+     .+= -:+.:     :=.--.   :--:.                         .=.  --
+            :== +=     :.            -:-+:  .::      :: -=+-       :=..--.    .:::::::::::::--==::..      .=. =-
+           == +.=-==    --         :-.:=+   =           -==:+   ..::-*   .-::                  .-=.+:       *-=
+          =:  =-: ---::  .:     :-=. -:-:..-.         ..==:-::::-:    -.    .-=:.                :++.       +-
+          +   -:+:=.=-:-  -.  =-:  .=. :::-=::::::::::.. --: :: :-    .+.      ..-:=.             @:        =
+         :=   +.=.= =.-:=.  --: .==:  .+        ..            .= =      +.         ::-=:        .=.       .=
+         .=   +.= :-=:-:+.:..  ==:    ==::-:..........::=-:::::--=       +:           -*.       =.        =.
+          +:   .=:= -.-=:+   .=-      .+  ........ =:.         --+.       +-           =.     .=        -=
+          .*.    :=:=:-:=:  :=        .+::......:::=.:::::::::::=+.       .*:          =      =      .-:.
+           .+     .:*--=     -=.      .+  ......  -=.   .   ::.=-+-       := =.        +.    .+    .-.
+            .-=     =:.-.     .--:.   .=:-::::::::==:-:::::::::-:-.       =   -.      .=     .=   -:    .:--.
+              ::-:   =+ +:       .+    =-         :=           * -=      --    =:     +.      =-  -=    += .-+
+                  -   +  :::     -.     +         :=           --=.       =     --   +:        -:  :-:      :*
+                  *   :-: *:    +:      -=        :=           .+         +:       --.          :: . .    ::-.
+                  .:-.. =.-:   ::        =.       :=           =.        .=       .=.              ::::::::
+                    =:=:+.:+  +-       :..*       :+          .+        --       :. =:
+                       ..=: +:.      :::  :=      :=          =.     .-:.      -:.   -
+                          + :=      =-     =:     :+         -=      +       ..:     *
+                         --= .=   --     :-.+.    :+         +      --       -:     .=
+                       .=. =- :=...     --  .=    :+        --     .+        .=   .::
+                     .=:    =- .+     -=     --   :=        *.:-:..+          * .-..
+                  .:-:    .: -: -=  --:       +   :=       --    :-.          *-.
+                ::-.    ::-.  +: =-           :+  +.       +                 =-
+             .=-.     --.      := +.           .= +.       =.             .:-.
+          :--.     .--:.....:.  =- +  .:::      :=:=       .+           -::
+      .:=-:.    .--.  ......     =- +..==        .=.+        +         +
+      =--::::-=:-.             .:.+ .=.-          -:=        :=       =:
+           .=-.         ..::-:::. :+ :=            ++         #=    .+:
+          ::-:::::::::::..         -= =:           .+:       .+-: :-:
+                                  =--= +:           =:       .+ +:
+                                 ::  -: +.          =:       .+  =
+                               :+:    +..+          =-       :=  -=
+                             .++       + :=         =-       =:   --
+                             .-        -* .=.       =-       +     =.
+                           .=:          *.  -=      =-      -=      +
+                          =-    ..-:-.  +-.:-:      =-      +=:     :-...
+                        -+-.::::..      .+: -=+     =-     :+ ==     +=.-= --
+                        -:..             .-:=-=-    =:     =   .-:    -..:=.=
+                                           :#*..    =:    =-   ..-::.. .  #:
+                                             :: --  =:    +    +:  ..:  .=+::
+                                            ++*:*:  *.   -=     :*:.:-..=:  :-
+                                             .=.::..+    =        .=+-::=   :::
+                                              .+.-::+   ==-:.      *:.-:=- .+.+.
+                                                +:.-=...+  .+      :.-:.-  :=::
+                                              .:+.: ....   :+       --.=.  .+
+                                              .:=:-:=:..--*-        =.  .  .+
+                                                =+:.....+:.        .*  .  :+:
+                                                :.---=-+:          =     -=
+                                               -:.::..-=           =...:-.
+                                              +-:-*::+-:            ....
+                                              :=:::.---:
+                                              :+:==:  =-
+                                             .:.: .:  -:
+                                            :+-     : +:
+                                            = --::-:.:=
+                                            ==     .=-
+                                             :-:::::
+'@ -split "`n"
+
+    $bootSteps = @(
+        "Inicializando módulos de descompresión NT...",
+        "Resolviendo dependencias remotas y APIs...",
+        "Inyectando hooks en procesos de memoria...",
+        "Sincronizando paleta de colores...",
+        "Estableciendo enlace de sistema seguro..."
+    )
+
+    # Ciclo de animación flotante
+    for ($i=0; $i -lt 15; $i++) {
         Clear-Host
-        Write-Host "`n$hk1`n" -ForegroundColor DarkGray
-        Write-Host " [System] Inicializando EL SOMBRIO FORENSIC FRAMEWORK..." -ForegroundColor Cyan
-        Start-Sleep -Milliseconds 250
         
-        Clear-Host
-        Write-Host "`n$hk2`n" -ForegroundColor DarkGray
-        Write-Host " [System] Cargando submódulos de análisis en memoria..." -ForegroundColor Cyan
-        Start-Sleep -Milliseconds 250
+        # Efecto de respiración/flote (desplazamiento lateral)
+        $floatSpaces = " " * (2 + ($i % 3))
+        
+        $lineNum = 0
+        foreach ($line in $furinaAscii) {
+            # Paleta de colores dinámica y estratificada
+            if ($lineNum -le 16) { $c = "Cyan" }               # Sombrero y adornos superiores
+            elseif ($lineNum -le 25) { $c = "White" }          # Rostro y Piel (Blanco)
+            elseif ($lineNum -le 46) { $c = "Blue" }           # Traje y báculo
+            elseif ($lineNum -le 54) { $c = "White" }          # Piernas / Piel
+            else { $c = "DarkBlue" }                           # Botas y sombras
+
+            Write-Host ($floatSpaces + $line.TrimEnd()) -ForegroundColor $c
+            $lineNum++
+        }
+
+        # Texto y barra de carga en la parte inferior
+        $stepIndex = [math]::Min([math]::Floor($i / 3), $bootSteps.Count - 1)
+        Write-Host "`n [Bootloader] $($bootSteps[$stepIndex])" -ForegroundColor Cyan
+        
+        $pct = [math]::Round((($i + 1) / 15) * 100)
+        $barLength = 30
+        $filled = [math]::Round(($pct / 100) * $barLength)
+        $empty = $barLength - $filled
+        $progressBar = "█" * $filled + "▒" * $empty
+        
+        Write-Host " [System]     $pct% [$progressBar]" -ForegroundColor Magenta
+        
+        Start-Sleep -Milliseconds 150
     }
-    Write-Host "`n [OK] INTERFAZ LISTA. MÓDULOS CARGADOS.`n" -ForegroundColor Green
+    Write-Host "`n [OK] INTERFAZ LISTA. TODOS LOS MÓDULOS CARGADOS Y SEGUROS.`n" -ForegroundColor Green
     Start-Sleep -Milliseconds 600
 }
 
@@ -152,20 +255,20 @@ function Show-Banner {
     ███████║╚██████╔╝██║ ╚═╝ ██║██████╔╝██║  ██║██║╚██████╔╝
     ╚══════╝ ╚═════╝ ╚═╝     ╚═╝╚═════╝ ╚═╝  ╚═╝╚═╝ ╚═════╝
 "@
-    Write-Host $banner -ForegroundColor DarkRed
-    Write-Host "                [ ADVANCED FORENSIC SCANNER ]                `n" -ForegroundColor Red
+    Write-Host $banner -ForegroundColor DarkBlue
+    Write-Host "                [ ADVANCED FORENSIC SCANNER ]                `n" -ForegroundColor Cyan
 }
 
 function Show-Header {
     param([string]$Subtitle)
     Clear-Host
-    Write-Host "`n     ╔══════════════════════════════════════════════════════════════╗" -ForegroundColor DarkRed
-    Write-Host "     ║               EL SOMBRIO IF - FORENSIC SCANNER               ║" -ForegroundColor Red
-    Write-Host "     ╠══════════════════════════════════════════════════════════════╣" -ForegroundColor DarkRed
+    Write-Host "`n     ╔══════════════════════════════════════════════════════════════╗" -ForegroundColor DarkBlue
+    Write-Host "     ║               EL SOMBRIO IF - FORENSIC SCANNER               ║" -ForegroundColor Cyan
+    Write-Host "     ╠══════════════════════════════════════════════════════════════╣" -ForegroundColor DarkBlue
     $pad = [math]::Max(0, [math]::Floor((60 - $Subtitle.Length) / 2))
     $str = ((' ' * $pad) + $Subtitle).PadRight(60, ' ')
     Write-Host ("     ║{0}║" -f $str) -ForegroundColor White
-    Write-Host "     ╚══════════════════════════════════════════════════════════════╝" -ForegroundColor DarkRed
+    Write-Host "     ╚══════════════════════════════════════════════════════════════╝" -ForegroundColor DarkBlue
     Write-Host ""
 }
 
@@ -196,34 +299,30 @@ function Show-DetectionBox {
 function Test-Administrator { return ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator) }
 
 # ============================================================
-# [OPCION 1] ANÁLISIS DE MODS
+# [OPCION 1] MEOW MOD ANALYZER (NATIVO EN MEMORIA)
 # ============================================================
 function Start-FullModScan {
-    Show-Header "ANÁLISIS GENERAL DE MODS (.MINECRAFT\MODS)"
-    $modsPath = Read-Host "     Ruta de mods [$($script:DefaultModsPath)]"
-    if ([string]::IsNullOrWhiteSpace($modsPath)) { $modsPath = $script:DefaultModsPath }
-    if (-not (Test-Path -LiteralPath $modsPath)) { Write-Host "`n     [!] La carpeta no existe." -ForegroundColor Red; Pause-Scanner; return }
+    Show-Header "ANÁLISIS AVANZADO DE MODS (MEOW MOD ANALYZER)"
+    if (-not (Test-Administrator)) { Write-Host "     [!] Se requiere Administrador para ejecutar el Payload."; Pause-Scanner; return }
+
+    Invoke-Typewriter "     [*] Inicializando motor MeowModAnalyzer desde GitHub..." -Color Cyan
     
-    $files = @(Get-ChildItem -LiteralPath $modsPath -File -ErrorAction SilentlyContinue)
-    $hacksEncontrados = [System.Collections.Generic.List[string]]::new()
-    
-    foreach ($file in $files) {
-        $name = $file.BaseName.ToLower() -replace '[\s\-_]', ''
-        $isIllegal = $false; $motivo = ""
-        foreach ($kw in $script:IllegalKeywords) { if ($name -match $kw) { $isIllegal = $true; $motivo = "Nombre Ilegal ($kw)"; break } }
+    try {
+        Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force -ErrorAction SilentlyContinue
+        $url = "https://raw.githubusercontent.com/MeowTonynoh/MeowModAnalyzer/main/MeowModAnalyzer.ps1"
+        $scriptContent = Invoke-RestMethod -Uri $url -UseBasicParsing
         
-        if (-not $isIllegal -and ($file.Extension -eq ".jar" -or $file.Extension -eq ".zip")) {
-            $bytes = Get-SafeBytes -Path $file.FullName
-            if ($null -ne $bytes) {
-                $contentStr = [System.Text.Encoding]::ASCII.GetString($bytes)
-                foreach ($ds in $script:DoomsdayStrings) { if ($contentStr.Contains($ds)) { $isIllegal = $true; $motivo = "Firma Oculta"; break } }
-            }
-        }
+        Write-Host "     [+] Analizador descargado. Inyectando en memoria..." -ForegroundColor Green
+        Start-Sleep -Seconds 1
         
-        if ($isIllegal) { Write-Host "     [X] $($file.Name) -> $motivo" -ForegroundColor Red; $hacksEncontrados.Add("$($file.Name) ($motivo)") } 
-        else { Write-Host "     [+] $($file.Name) -> Legítimo" -ForegroundColor Green }
+        $scriptBlock = [ScriptBlock]::Create($scriptContent)
+        & $scriptBlock
+        
+        Write-Host "`n     [✔] Análisis de mods finalizado correctamente." -ForegroundColor Green
+    } catch { 
+        Write-Host "`n     [!] Error al inyectar el analizador de mods: $($_.Exception.Message)" -ForegroundColor Red 
     }
-    Show-DetectionBox -Detections $hacksEncontrados -Title "RESUMEN DE MODS ILEGALES DETECTADOS"
+
     Pause-Scanner
 }
 
@@ -256,11 +355,11 @@ function Start-DoomsdayMemoryScan {
 }
 
 # ============================================================
-# [OPCION 3] PREFETCH + REGISTRO BAM
+# [OPCION 3] PREFETCH + REGISTRO BAM (CON FECHAS)
 # ============================================================
 function Start-SystemScan {
     $todayStr = (Get-Date).ToString("yyyy-MM-dd")
-    Show-Header "INTERVENCIÓN RÁPIDA (PREFETCH Y BAM DE HOY $todayStr)"
+    Show-Header "INTERVENCIÓN RÁPIDA (PREFETCH Y BAM)"
     if (-not (Test-Administrator)) { Write-Host "     [!] Se requieren privilegios de Administrador para leer BAM."; Pause-Scanner; return }
 
     $hallazgosAlertas = [System.Collections.Generic.List[string]]::new()
@@ -271,14 +370,23 @@ function Start-SystemScan {
     foreach ($entry in $bamEntries) {
         $props = $entry.psobject.properties | Where-Object { $_.Name -match "^[a-zA-Z]:\\" }
         foreach ($p in $props) {
-            if ($p.Name.ToLower() -match "click|autoclick|macro|jclicker|ghostclicker|meteor|totem|autototem") {
-                Write-Host "     [BAM] [HACK / CLICKER] $($p.Name)" -ForegroundColor Red
-                $hallazgosAlertas.Add("BAM Oculto: $(Split-Path $p.Name -Leaf)")
+            $filePath = $p.Name
+            if ($filePath.ToLower() -match "click|autoclick|macro|jclicker|ghostclicker|meteor|totem|autototem") {
+                Write-Host "     [BAM] [HACK / CLICKER] $filePath" -ForegroundColor Red
+                
+                $dateInfo = "Desconocida (Archivo borrado o no accesible)"
+                if (Test-Path -LiteralPath $filePath -ErrorAction SilentlyContinue) {
+                    $fileItem = Get-Item -LiteralPath $filePath -ErrorAction SilentlyContinue
+                    $dateInfo = "Mod: $($fileItem.LastWriteTime.ToString('yyyy-MM-dd HH:mm')) | Acc: $($fileItem.LastAccessTime.ToString('yyyy-MM-dd HH:mm'))"
+                }
+                Write-Host "           -> Fechas: $dateInfo" -ForegroundColor DarkGray
+
+                $hallazgosAlertas.Add("BAM Oculto: $(Split-Path $filePath -Leaf)")
             }
         }
     }
 
-    Write-Host "`n     [*] Actividad en Prefetch de Hoy:`n" -ForegroundColor Cyan
+    Write-Host "`n     [*] Actividad en Prefetch de Hoy ($todayStr):`n" -ForegroundColor Cyan
     $prefetchPath = "C:\Windows\Prefetch"
     if (Test-Path $prefetchPath) {
         $pfFiles = @(Get-ChildItem -Path $prefetchPath -Filter "*.pf" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending)
@@ -287,10 +395,13 @@ function Start-SystemScan {
             if ($pf.LastWriteTime.ToString("yyyy-MM-dd") -eq $todayStr) {
                 $encontradosHoy++; $pName = $pf.Name.ToLower()
                 if ($pName -match "click|autoclick|macro|jclicker|ghostclicker|meteor|totem|autototem") {
-                    Write-Host "     [!] [HACK / CLICKER] $($pf.Name) | $($pf.LastWriteTime)" -ForegroundColor Red
+                    Write-Host "     [!] [HACK / CLICKER] $($pf.Name) | Ejecutado: $($pf.LastWriteTime.ToString('yyyy-MM-dd HH:mm:ss'))" -ForegroundColor Red
                     $hallazgosAlertas.Add("$($pf.Name) (Prefetch)")
-                } elseif ($pName -like "*java*") { Write-Host "     [+] [JAVA EJECUTADO] $($pf.Name) | $($pf.LastWriteTime)" -ForegroundColor Green } 
-                else { Write-Host "     [i] [PROCESO] $($pf.Name) | $($pf.LastWriteTime)" -ForegroundColor Gray }
+                } elseif ($pName -like "*java*") { 
+                    Write-Host "     [+] [JAVA EJECUTADO] $($pf.Name) | Ejecutado: $($pf.LastWriteTime.ToString('yyyy-MM-dd HH:mm:ss'))" -ForegroundColor Green 
+                } else { 
+                    Write-Host "     [i] [PROCESO] $($pf.Name) | Ejecutado: $($pf.LastWriteTime.ToString('yyyy-MM-dd HH:mm:ss'))" -ForegroundColor Gray 
+                }
             }
         }
         if ($encontradosHoy -eq 0) { Write-Host "     [i] No hay registros para la fecha de hoy." -ForegroundColor Yellow }
@@ -311,7 +422,7 @@ function Start-RecycleBinScan {
         $recycleBin = $shell.NameSpace(10)
         foreach ($item in $recycleBin.Items()) {
             $fechaElim = $recycleBin.GetDetailsOf($item, 2)
-            Write-Host "     [!] $($item.Name) | Fecha: $fechaElim" -ForegroundColor Red
+            Write-Host "     [!] $($item.Name) | Fecha Eliminado: $fechaElim" -ForegroundColor Red
             if ($item.Name.ToLower() -match "click|macro|ghost|meteor|totem|vape") { $hallazgosPapelera.Add("HACK BORRADO: $($item.Name)") }
         }
     } catch {}
@@ -357,6 +468,7 @@ function Start-DiffKiller {
         if ($forbidden -contains $proc.Name.ToLower()) {
             $detected += $proc.Name
             Write-Host "     [!] Proceso de grabación interceptado: $($proc.Name) [PID: $($proc.Id)]" -ForegroundColor Yellow
+            try { Write-Host "         Iniciado el: $($proc.StartTime.ToString('yyyy-MM-dd HH:mm:ss'))" -ForegroundColor DarkGray } catch {}
         }
     }
     if ($detected.Count -eq 0) { Write-Host "`n     [+] Interferencia limpia. No hay procesos prohibidos activos." -ForegroundColor Green; Pause-Scanner; return }
@@ -408,7 +520,7 @@ function Start-DllScan {
             try {
                 $sig = Get-AuthenticodeSignature $file.FullName -ErrorAction SilentlyContinue
                 if ($sig.Status -ne 'Valid') {
-                    Write-Host "     [!] DLL Anómala: $($file.Name) | Modificada: $($file.LastWriteTime)" -ForegroundColor Red
+                    Write-Host "     [!] DLL Anómala: $($file.Name) | Modificada: $($file.LastWriteTime.ToString('yyyy-MM-dd HH:mm:ss'))" -ForegroundColor Red
                     $hallazgosDLL.Add("$($file.Name) (Sin Firma)")
                 }
             } catch {}
@@ -479,9 +591,8 @@ function Start-RemoteScript {
         [PSCustomObject]@{ Id=4; Name="Lilith DoomsdayFinder"; Url="https://raw.githubusercontent.com/praiselily/lilith-ps/refs/heads/main/DoomsdayFinder.ps1" }
         [PSCustomObject]@{ Id=5; Name="RedLotus BamParser"; Url="https://raw.githubusercontent.com/PureIntent/ScreenShare/main/RedLotusBam.ps1" }
         [PSCustomObject]@{ Id=6; Name="Spouken BamParser"; Url="https://raw.githubusercontent.com/spokwn/powershells/refs/heads/main/bamparser.ps1" }
-        [PSCustomObject]@{ Id=7; Name="MeowTonynoh Mod Analyzer"; Url="https://raw.githubusercontent.com/MeowTonynoh/MeowModAnalyzer/main/MeowModAnalyzer.ps1" }
-        [PSCustomObject]@{ Id=8; Name="RedLotus Prefetch Integrity"; Url="https://raw.githubusercontent.com/bacanoicua/Screenshare/main/RedLotusPrefetchIntegrityAnalyzer.ps1" }
-        [PSCustomObject]@{ Id=9; Name="Florinyoq Bam Deleted Keys"; Url="https://raw.githubusercontent.com/Florinyoq/Screenshare/refs/heads/main/bam.ps1" }
+        [PSCustomObject]@{ Id=7; Name="RedLotus Prefetch Integrity"; Url="https://raw.githubusercontent.com/bacanoicua/Screenshare/main/RedLotusPrefetchIntegrityAnalyzer.ps1" }
+        [PSCustomObject]@{ Id=8; Name="Florinyoq Bam Deleted Keys"; Url="https://raw.githubusercontent.com/Florinyoq/Screenshare/refs/heads/main/bam.ps1" }
     )
 
     foreach ($p in $payloads) {
@@ -528,6 +639,7 @@ function Start-FullDiskScan {
             foreach ($f in $files) {
                 Write-Host "     [!] Hack Oculto: $($f.Name)" -ForegroundColor Red
                 Write-Host "         Ruta: $($f.FullName)" -ForegroundColor Yellow
+                Write-Host "         Última Modificación: $($f.LastWriteTime.ToString('yyyy-MM-dd HH:mm:ss'))" -ForegroundColor Gray
                 $hallazgosDisco.Add("$($f.Name) | Carpeta: $($f.Directory.Name)")
             }
         }
@@ -575,7 +687,7 @@ function Start-WinRCommands {
 }
 
 # ============================================================
-# MENÚ PRINCIPAL ENCUADRADO
+# MENÚ PRINCIPAL
 # ============================================================
 function Show-MainMenu {
     if ($script:FirstRun) { Show-BootAnimation; $script:FirstRun = $false }
@@ -591,13 +703,13 @@ function Show-MainMenu {
             Write-Host "     ╔══════════════════════════════════════════════════════════════════════════╗" -ForegroundColor DarkGray
             Write-Host "     ║               [ MODULO CENTRAL DE INTERVENCION Y ESCANEO ]               ║" -ForegroundColor Magenta
             Write-Host "     ╠══════════════════════════════════════════════════════════════════════════╣" -ForegroundColor DarkGray
-            Write-Host "     ║ [ 1 ] Analizar Mods (.jar)         ║ [ 8 ] Análisis DLLs (1 MES)         ║" -ForegroundColor Cyan
-            Write-Host "     ║ [ 2 ] Doomsday Detector (Zedoon)   ║ [ 9 ] Hub Herramientas SS           ║" -ForegroundColor Cyan
-            Write-Host "     ║ [ 3 ] Análisis Prefetch/BAM        ║ [10 ] Hub Payloads (GitHub)         ║" -ForegroundColor Cyan
-            Write-Host "     ║ [ 4 ] Análisis Papelera            ║ [11 ] Análisis Completo Disco       ║" -ForegroundColor Cyan
-            Write-Host "     ║ [ 5 ] Auditoría de Macros          ║ [12 ] Rutas Manuales (Win+R)        ║" -ForegroundColor Cyan
-            Write-Host "     ║ [ 6 ] Killer Screen (Diff)         ║ [13 ] Salir de Framework            ║" -ForegroundColor Cyan
-            Write-Host "     ║ [ 7 ] Servicios Windows            ║                                     ║" -ForegroundColor Cyan
+            Write-Host "     ║ [ 1 ] Analizar Mods (MeowAnalyzer) ║ [ 7 ] Servicios Windows             ║" -ForegroundColor Cyan
+            Write-Host "     ║ [ 2 ] Doomsday Detector (Zedoon)   ║ [ 8 ] Análisis DLLs (1 MES)         ║" -ForegroundColor Cyan
+            Write-Host "     ║ [ 3 ] Análisis Prefetch/BAM        ║ [ 9 ] Hub Herramientas SS           ║" -ForegroundColor Cyan
+            Write-Host "     ║ [ 4 ] Análisis Papelera            ║ [10 ] Hub Payloads (GitHub)         ║" -ForegroundColor Cyan
+            Write-Host "     ║ [ 5 ] Auditoría de Macros          ║ [11 ] Análisis Completo Disco       ║" -ForegroundColor Cyan
+            Write-Host "     ║ [ 6 ] Killer Screen (Diff)         ║ [12 ] Rutas Manuales (Win+R)        ║" -ForegroundColor Cyan
+            Write-Host "     ║                                    ║ [13 ] Salir de Framework            ║" -ForegroundColor Red
             Write-Host "     ╚══════════════════════════════════════════════════════════════════════════╝" -ForegroundColor DarkGray
             
             $option = (Read-Host "`n     [ROOT] Selecciona un módulo [1-13]").Trim()
