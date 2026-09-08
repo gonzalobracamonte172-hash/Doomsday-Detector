@@ -3,12 +3,12 @@ chcp 65001 > $null
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 # ============================================================
-# EL SOMBRIO IF - FORENSIC SCANNER (MASTER V7 - WIN+R UPDATE)
+# EL SOMBRIO IF - FORENSIC SCANNER (MASTER V9 - NATIVE PS & BARS)
 # ============================================================
 
 $script:DefaultModsPath = "$env:APPDATA\.minecraft\mods"
 
-# Base de datos (Sin "dooms" ni "doomsday" para la lectura por nombre)
+# Base de datos (Sin doomsday para nombres)
 $script:IllegalKeywords = @(
     "antighosttotem", "fasttotem", "totemhelper", "autototem", "totem", "switchtotems",
     "acurateblock", "fastplace", "attacktroughgrass", "periodicattack", "toroautoattack",
@@ -23,7 +23,7 @@ $script:IllegalKeywords = @(
     "raven", "vape", "novoline", "flux", "impact", "inertia", "kami", "krypton"
 )
 
-# Firmas de Bytes Internos (Para lectura cruda, aquí SÍ se mantiene Doomsday)
+# Firmas de Bytes Internos
 $script:DoomsdayStrings = @(
     "lYgKfQhaCkHofBf", "?WHt4Y", "!hi!kGD@<nS", "%#ksghCP$NIS7$EQuX",
     "jnativehook"
@@ -32,7 +32,7 @@ $script:DoomsdayStrings = @(
 $script:WindowsServices = @("dps", "appinfo", "pcasvc", "eventlog", "sysmain", "dusmsvc", "bam")
 
 # ============================================================
-# LECTOR DE ARCHIVOS BLINDADO (EVITA CIERRES)
+# FUNCIONES BASE
 # ============================================================
 function Get-SafeBytes {
     param([string]$Path)
@@ -48,47 +48,10 @@ function Get-SafeBytes {
     }
 }
 
-# ============================================================
-# MOTOR NTLD DECOMPRESSOR SEGURO
-# ============================================================
-if (-not ([System.Management.Automation.PSTypeName]'NtdllDecompressor').Type) {
-    try {
-        Add-Type -TypeDefinition @"
-        using System;
-        using System.Runtime.InteropServices;
-        public class NtdllDecompressor {
-            [DllImport("ntdll.dll")]
-            public static extern uint RtlDecompressBufferEx(ushort CompressionFormat, byte[] UncompressedBuffer, int UncompressedBufferSize, byte[] CompressedBuffer, int CompressedBufferSize, out int FinalUncompressedSize, IntPtr WorkSpace);
-            [DllImport("ntdll.dll")]
-            public static extern uint RtlGetCompressionWorkSpaceSize(ushort CompressionFormat, out uint CompressBufferWorkSpaceSize, out uint CompressFragmentWorkSpaceSize);
-            public static byte[] Decompress(byte[] compressed) {
-                if (compressed == null || compressed.Length < 8) return null;
-                if (compressed[0] != 0x4D || compressed[1] != 0x41 || compressed[2] != 0x4D) return null;
-                int uncompSize = BitConverter.ToInt32(compressed, 4);
-                uint wsComp, wsFrag;
-                if (RtlGetCompressionWorkSpaceSize(4, out wsComp, out wsFrag) != 0) return null;
-                IntPtr workspace = Marshal.AllocHGlobal((int)wsFrag);
-                byte[] result = new byte[uncompSize];
-                try {
-                    int finalSize;
-                    byte[] compData = new byte[compressed.Length - 8];
-                    Array.Copy(compressed, 8, compData, 0, compData.Length);
-                    if (RtlDecompressBufferEx(4, result, uncompSize, compData, compData.Length, out finalSize, workspace) != 0) return null;
-                    return result;
-                } finally { Marshal.FreeHGlobal(workspace); }
-            }
-        }
-"@
-    } catch { }
-}
-
-# ============================================================
-# INTERFAZ Y CUADROS DE DETECCIÓN (BOXES)
-# ============================================================
 function Show-Banner {
     Clear-Host
     Write-Host "`n                    Made by zedoon (aka Yaz) @ Mars MC SS team & RL forensics" -ForegroundColor Cyan
-    Write-Host "                    Doomsday Client Scanner v1.9 (Win+R & Disk Update)" -ForegroundColor Cyan
+    Write-Host "                    Doomsday Client Scanner v1.9.5 (Native Execution & Progress Bars)" -ForegroundColor Cyan
     Write-Host ""
 }
 
@@ -117,10 +80,8 @@ function Show-DetectionBox {
     $str = ((' ' * $pad) + $Title).PadRight(60, ' ')
     Write-Host "     ║$str║" -ForegroundColor Red
     Write-Host "     ╠══════════════════════════════════════════════════════════════╣" -ForegroundColor Red
-    
-    if ($Detections.Count -eq 0) {
-        Write-Host "     ║ No se detectaron anomalías en este escaneo.                  ║" -ForegroundColor Green
-    } else {
+    if ($Detections.Count -eq 0) { Write-Host "     ║ No se detectaron anomalías en este escaneo.                  ║" -ForegroundColor Green } 
+    else {
         foreach ($item in $Detections) {
             if ($item.Length -gt 56) { $item = $item.Substring(0, 53) + "..." }
             $itemStr = (" > " + $item).PadRight(60, ' ')
@@ -130,9 +91,7 @@ function Show-DetectionBox {
     Write-Host "     ╚══════════════════════════════════════════════════════════════╝" -ForegroundColor Red
 }
 
-function Test-Administrator {
-    return ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-}
+function Test-Administrator { return ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator) }
 
 # ============================================================
 # [OPCION 1] ANÁLISIS DE MODS
@@ -141,64 +100,64 @@ function Start-FullModScan {
     Show-Header "ANÁLISIS GENERAL DE MODS (.MINECRAFT\MODS)"
     $modsPath = Read-Host "     Ruta de mods [$($script:DefaultModsPath)]"
     if ([string]::IsNullOrWhiteSpace($modsPath)) { $modsPath = $script:DefaultModsPath }
-
     if (-not (Test-Path -LiteralPath $modsPath)) { Write-Host "`n     [!] La carpeta no existe." -ForegroundColor Red; Pause-Scanner; return }
-
+    
     $files = @(Get-ChildItem -LiteralPath $modsPath -File -ErrorAction SilentlyContinue)
     $hacksEncontrados = [System.Collections.Generic.List[string]]::new()
-
+    
     foreach ($file in $files) {
         $name = $file.BaseName.ToLower() -replace '[\s\-_]', ''
         $isIllegal = $false; $motivo = ""
-
-        foreach ($kw in $script:IllegalKeywords) {
-            if ($name -match $kw) { $isIllegal = $true; $motivo = "Nombre Ilegal ($kw)"; break }
-        }
-
+        foreach ($kw in $script:IllegalKeywords) { if ($name -match $kw) { $isIllegal = $true; $motivo = "Nombre Ilegal ($kw)"; break } }
+        
         if (-not $isIllegal -and ($file.Extension -eq ".jar" -or $file.Extension -eq ".zip")) {
             $bytes = Get-SafeBytes -Path $file.FullName
             if ($null -ne $bytes) {
                 $contentStr = [System.Text.Encoding]::ASCII.GetString($bytes)
-                foreach ($ds in $script:DoomsdayStrings) {
-                    if ($contentStr.Contains($ds)) { $isIllegal = $true; $motivo = "Firma Oculta"; break }
-                }
+                foreach ($ds in $script:DoomsdayStrings) { if ($contentStr.Contains($ds)) { $isIllegal = $true; $motivo = "Firma Oculta"; break } }
             }
         }
-
-        if ($isIllegal) {
-            Write-Host "     [X] $($file.Name) -> $motivo" -ForegroundColor Red
-            $hacksEncontrados.Add("$($file.Name) ($motivo)")
-        } else {
-            Write-Host "     [+] $($file.Name) -> Legítimo" -ForegroundColor Green
-        }
+        
+        if ($isIllegal) { Write-Host "     [X] $($file.Name) -> $motivo" -ForegroundColor Red; $hacksEncontrados.Add("$($file.Name) ($motivo)") } 
+        else { Write-Host "     [+] $($file.Name) -> Legítimo" -ForegroundColor Green }
     }
     Show-DetectionBox -Detections $hacksEncontrados -Title "RESUMEN DE MODS ILEGALES DETECTADOS"
     Pause-Scanner
 }
 
 # ============================================================
-# [OPCION 2] DETECCIÓN PROFUNDA (JAVA MEMORY)
+# [OPCION 2] DETECCIÓN PROFUNDA (JAVA MEMORY + BARRA DE CARGA)
 # ============================================================
 function Start-DoomsdayMemoryScan {
-    Show-Header "DETECCIÓN PROFUNDA (HACKS INYECTADOS)"
-    Write-Host "     [*] Analizando módulos cargados en los procesos de Java..." -ForegroundColor Cyan
+    Show-Header "DETECCIÓN PROFUNDA (TODOS LOS PROCESOS)"
+    Write-Host "     [*] Analizando todos los procesos activos en memoria..." -ForegroundColor Cyan
     
-    $javaProcs = Get-Process -Name "javaw", "java" -ErrorAction SilentlyContinue
+    $allProcs = Get-Process -ErrorAction SilentlyContinue
+    $totalProcs = $allProcs.Count
     $inyecciones = [System.Collections.Generic.List[string]]::new()
 
-    if (-not $javaProcs) { Write-Host "`n     [i] No hay procesos de Java en ejecución." -ForegroundColor Yellow } 
-    else {
-        foreach ($p in $javaProcs) {
-            try {
-                foreach ($mod in $p.Modules) {
+    for ($i = 0; $i -lt $totalProcs; $i++) {
+        $p = $allProcs[$i]
+        $porcentaje = [math]::Round((($i + 1) / $totalProcs) * 100)
+        
+        # BARRA DE CARGA QUE MUESTRA CADA PROCESO
+        Write-Progress -Activity "🔍 Rastreo Forense de Memoria" -Status "Escaneando: $($p.ProcessName).exe (PID: $($p.Id))" -PercentComplete $porcentaje
+
+        try {
+            $modules = $p.Modules | Select-Object ModuleName, FileName -ErrorAction SilentlyContinue
+            if ($modules) {
+                foreach ($mod in $modules) {
                     $modName = $mod.ModuleName.ToLower()
                     $modPath = $mod.FileName
                     
-                    if ($modName -match "jnativehook|meteor|vape") {
+                    # 1. Búsqueda de Módulos Ilegales en TODOS los procesos
+                    if ($modName -match "jnativehook|meteor|vape|dooms") {
                         $inyecciones.Add("Módulo Ilegal: $modName (PID: $($p.Id))")
-                        Write-Host "     [X] Inyección interceptada: $modPath" -ForegroundColor Red
+                        Write-Host "`n     [X] Inyección detectada en $($p.ProcessName): $modPath" -ForegroundColor Red
                     }
-                    elseif ($modPath -match "\.dll$|\.jar$") {
+                    
+                    # 2. Análisis Profundo (Bytes) SOLO en Java para evitar colapso de RAM
+                    if ($p.ProcessName -match "java" -and $modPath -match "\.dll$|\.jar$") {
                         $fileInfo = Get-Item $modPath -ErrorAction SilentlyContinue
                         if ($fileInfo -and $fileInfo.Length -lt 25MB) {
                             $bytes = Get-SafeBytes -Path $modPath
@@ -207,7 +166,7 @@ function Start-DoomsdayMemoryScan {
                                 foreach ($ds in $script:DoomsdayStrings) {
                                     if ($text.Contains($ds)) {
                                         $inyecciones.Add("Firma Hack en: $modName")
-                                        Write-Host "     [X] Inyección interceptada (Firma): $modPath" -ForegroundColor Red
+                                        Write-Host "`n     [X] Firma inyectada en $($p.ProcessName): $modPath" -ForegroundColor Red
                                         break
                                     }
                                 }
@@ -215,10 +174,12 @@ function Start-DoomsdayMemoryScan {
                         }
                     }
                 }
-            } catch {}
-        }
+            }
+        } catch {}
     }
-    Show-DetectionBox -Detections $inyecciones -Title "INYECCIONES Y HACKS FANTASMA EN JAVA"
+    
+    Write-Progress -Activity "🔍 Rastreo Forense de Memoria" -Completed
+    Show-DetectionBox -Detections $inyecciones -Title "INYECCIONES Y HACKS FANTASMA"
     Pause-Scanner
 }
 
@@ -258,22 +219,18 @@ function Start-SystemScan {
             if ($pf.LastWriteTime.ToString("yyyy-MM-dd") -eq $todayStr) {
                 $encontradosHoy++
                 $pName = $pf.Name.ToLower()
-
                 if ($pName -match "click|autoclick|macro|jclicker|ghostclicker|meteor|totem|autototem") {
                     Write-Host "     [!] [HACK / CLICKER] $($pf.Name) | $($pf.LastWriteTime)" -ForegroundColor Red
                     $hallazgosAlertas.Add("$($pf.Name) (Prefetch)")
-                } 
-                elseif ($pName -like "*java*") {
+                } elseif ($pName -like "*java*") {
                     Write-Host "     [+] [JAVA EJECUTADO] $($pf.Name) | $($pf.LastWriteTime)" -ForegroundColor Green
-                } 
-                else {
+                } else {
                     Write-Host "     [i] [PROCESO] $($pf.Name) | $($pf.LastWriteTime)" -ForegroundColor Gray
                 }
             }
         }
         if ($encontradosHoy -eq 0) { Write-Host "     [i] No hay registros para la fecha de hoy." -ForegroundColor Yellow }
     }
-    
     Show-DetectionBox -Detections $hallazgosAlertas -Title "ALERTAS CRÍTICAS EN PREFETCH Y BAM"
     Pause-Scanner
 }
@@ -284,7 +241,6 @@ function Start-SystemScan {
 function Start-RecycleBinScan {
     Show-Header "ANÁLISIS DE PAPELERA DE RECICLAJE"
     Write-Host "     [*] Buscando archivos eliminados (Evidencia destruida)...`n" -ForegroundColor White
-    
     $hallazgosPapelera = [System.Collections.Generic.List[string]]::new()
     try {
         $shell = New-Object -ComObject Shell.Application
@@ -292,12 +248,9 @@ function Start-RecycleBinScan {
         foreach ($item in $recycleBin.Items()) {
             $fechaElim = $recycleBin.GetDetailsOf($item, 2)
             Write-Host "     [!] $($item.Name) | Fecha: $fechaElim" -ForegroundColor Red
-            if ($item.Name.ToLower() -match "click|macro|ghost|meteor|totem|vape") {
-                $hallazgosPapelera.Add("HACK BORRADO: $($item.Name)")
-            }
+            if ($item.Name.ToLower() -match "click|macro|ghost|meteor|totem|vape") { $hallazgosPapelera.Add("HACK BORRADO: $($item.Name)") }
         }
     } catch {}
-
     Show-DetectionBox -Detections $hallazgosPapelera -Title "HACKS DETECTADOS EN LA PAPELERA"
     Pause-Scanner
 }
@@ -308,7 +261,6 @@ function Start-RecycleBinScan {
 function Start-MacroAudit {
     Show-Header "AUDITORÍA DE MACROS Y PERIFÉRICOS"
     Write-Host "     [*] Verificando perfiles de macros de hardware...`n" -ForegroundColor White
-
     $hallazgosMacros = [System.Collections.Generic.List[string]]::new()
     $pathsToCheck = @(
         @{ Name = "Logitech Gaming"; Path = "$env:USERPROFILE\AppData\Local\Logitech\Logitech Gaming Software\settings.json" },
@@ -317,20 +269,15 @@ function Start-MacroAudit {
         @{ Name = "Corsair CUE"; Path = "$env:USERPROFILE\AppData\Roaming\Corsair\CUE\Config.cuecfg" },
         @{ Name = "Razer Synapse"; Path = "C:\ProgramData\Razer\Synapse3\Log\SynapseService.log" }
     )
-
     foreach ($item in $pathsToCheck) {
         if (Test-Path $item.Path) {
             $extraInfo = "Instalado"
             if ($item.Name -eq "Corsair CUE" -and (Get-Content $item.Path -Raw -ErrorAction SilentlyContinue) -match "RecMouseClicksEnable") { 
-                $extraInfo = "MACRO ACTIVA" 
-                $hallazgosMacros.Add("$($item.Name) - Macro Activa")
-            } else {
-                $hallazgosMacros.Add("$($item.Name) Detectado")
-            }
+                $extraInfo = "MACRO ACTIVA"; $hallazgosMacros.Add("$($item.Name) - Macro Activa")
+            } else { $hallazgosMacros.Add("$($item.Name) Detectado") }
             Write-Host "     [!] $($item.Name) [$extraInfo] -> Ruta: $($item.Path)" -ForegroundColor Yellow
         }
     }
-
     Show-DetectionBox -Detections $hallazgosMacros -Title "SOFTWARE DE MACROS DETECTADO"
     Pause-Scanner
 }
@@ -342,16 +289,13 @@ function Start-DiffKiller {
     Show-Header "FINALIZADOR DE PROCESOS OCULTOS (DIFF)"
     $forbidden = @("obs","obs32","obs64","discord","streamlabs","bandicam","sharex","gamebar")
     $detected = @()
-    
     foreach ($proc in Get-Process -ErrorAction SilentlyContinue) {
         if ($forbidden -contains $proc.Name.ToLower()) {
             $detected += $proc.Name
             Write-Host "     [!] Proceso de grabación detectado: $($proc.Name) [Ejecutándose]" -ForegroundColor Yellow
         }
     }
-
     if ($detected.Count -eq 0) { Write-Host "`n     [+] No hay procesos prohibidos activos." -ForegroundColor Green; Pause-Scanner; return }
-    
     $choice = Read-Host "`n     ¿Forzar cierre de todos los procesos de grabación? (S/N)"
     if ($choice.ToUpper() -eq "S") {
         foreach ($name in $detected) {
@@ -368,24 +312,17 @@ function Start-DiffKiller {
 function Show-WindowsServices {
     Show-Header "ESTADO DE SERVICIOS WINDOWS (FORENSIC)"
     $hallazgosSvc = [System.Collections.Generic.List[string]]::new()
-
     foreach ($service in $script:WindowsServices) {
         $output = @(& sc.exe query $service 2>&1)
         $text = ($output -join "`n")
         $state = "DESCONOCIDO"; $color = "Gray"
-        
         if ($text -match 'RUNNING') { $state = "EJECUTÁNDOSE"; $color = "Green" }
         elseif ($text -match 'STOPPED') { 
             $state = "DETENIDO"; $color = "Red" 
-            if ($service -eq "pcasvc" -or $service -eq "bam" -or $service -eq "sysmain") {
-                $hallazgosSvc.Add("Servicio Crítico Apagado: $service")
-            }
-        }
-        elseif ($text -match '1060') { $state = "NO ENCONTRADO"; $color = "Red" }
-        
+            if ($service -eq "pcasvc" -or $service -eq "bam" -or $service -eq "sysmain") { $hallazgosSvc.Add("Servicio Crítico Apagado: $service") }
+        } elseif ($text -match '1060') { $state = "NO ENCONTRADO"; $color = "Red" }
         Write-Host "     - Servicio: $($service.ToUpper()) | Estado: $state" -ForegroundColor $color
     }
-
     Show-DetectionBox -Detections $hallazgosSvc -Title "ALERTAS DE SERVICIOS APAGADOS"
     Pause-Scanner
 }
@@ -396,16 +333,13 @@ function Show-WindowsServices {
 function Start-DllScan {
     Show-Header "ANÁLISIS DE DLLs DEL SISTEMA MODIFICADAS"
     if (-not (Test-Administrator)) { Write-Host "     [!] Se requiere Administrador."; Pause-Scanner; return }
-    
     Write-Host "     [*] Escaneando DLLs alteradas en el ÚLTIMO MES (30 días)..." -ForegroundColor Cyan
     $limitDate = (Get-Date).AddDays(-30)
     $systemPaths = @("$env:SystemRoot\System32", "$env:SystemRoot\SysWOW64")
     $hallazgosDLL = [System.Collections.Generic.List[string]]::new()
-
     foreach ($path in $systemPaths) {
         if (-not (Test-Path $path)) { continue }
         $dllFiles = @(Get-ChildItem -Path $path -Filter "*.dll" -File -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -ge $limitDate })
-        
         foreach ($file in $dllFiles) {
             try {
                 $sig = Get-AuthenticodeSignature $file.FullName -ErrorAction SilentlyContinue
@@ -416,83 +350,128 @@ function Start-DllScan {
             } catch {}
         }
     }
-
     Show-DetectionBox -Detections $hallazgosDLL -Title "DLLs ANÓMALAS O SIN FIRMA (ÚLTIMO MES)"
     Pause-Scanner
 }
 
 # ============================================================
-# [OPCION 9] HUB DE HERRAMIENTAS SS
+# [OPCION 9] HUB DE HERRAMIENTAS SS (EJECUCIÓN NATIVA)
 # ============================================================
 function Start-SSToolsHub {
-    Show-Header "HUB DE HERRAMIENTAS SS (APLICACIONES Y DESCARGAS)"
-    Write-Host "     [*] Colección de herramientas de ScreenShare y Forense...`n" -ForegroundColor Cyan
+    Show-Header "HUB DE HERRAMIENTAS SS (EJECUCIÓN Y DESCARGAS)"
+    Write-Host "     [*] Apps .exe se ejecutarán al instante. Otros links abrirán el navegador.`n" -ForegroundColor Cyan
 
     $tools = @(
-        [PSCustomObject]@{ Id=1; Name="AnyDesk"; Url="https://anydesk.com/es/downloads/thank-you?dv=win_exe"; Icon="🖥️" }
-        [PSCustomObject]@{ Id=2; Name="JournalTrace"; Url="https://github.com/ponei/JournalTrace/releases/download/1.0/JournalTrace.exe"; Icon="▶" }
-        [PSCustomObject]@{ Id=3; Name="Echo Journal Trace"; Url="https://dl.echo.ac/tool/journal"; Icon="▶" }
-        [PSCustomObject]@{ Id=4; Name="Process Hacker"; Url="https://sourceforge.net/projects/processhacker/files/processhacker2/processhacker-2.39-setup.exe/download"; Icon="✦" }
-        [PSCustomObject]@{ Id=5; Name="System Informer"; Url="https://sourceforge.net/projects/systeminformer/files/latest/download"; Icon="✦" }
-        [PSCustomObject]@{ Id=6; Name="WinPrefetchView"; Url="https://www.nirsoft.net/utils/winprefetchview-x64.zip"; Icon="📜" }
+        [PSCustomObject]@{ Id=1; Name="Journaltrace Spookwn"; Url="https://github.com/spokwn/journaltrace"; Icon="▶" }
+        [PSCustomObject]@{ Id=2; Name="Echo Journal Trace"; Url="https://dl.echo.ac/tool/journal"; Icon="▶" }
+        [PSCustomObject]@{ Id=3; Name="Process Hacker"; Url="https://sourceforge.net/projects/processhacker/files/processhacker2/processhacker-2.39-setup.exe/download"; Icon="✦" }
+        [PSCustomObject]@{ Id=4; Name="System Informer"; Url="https://sourceforge.net/projects/systeminformer/files/latest/download"; Icon="✦" }
+        [PSCustomObject]@{ Id=5; Name="WinPrefetchView"; Url="https://www.nirsoft.net/utils/winprefetchview-x64.zip"; Icon="📜" }
+        [PSCustomObject]@{ Id=6; Name="WinPrefetchView ++"; Url="https://github.com/Orbdiff/PrefetchView/releases/download/v1.6.1/PrefetchView++.exe"; Icon="📜" }
         [PSCustomObject]@{ Id=7; Name="Everything"; Url="https://www.voidtools.com/Everything-1.4.1.1026.x86-Setup.exe"; Icon="🔎" }
         [PSCustomObject]@{ Id=8; Name="Asistente De Recuva"; Url="https://www.ccleaner.com/es-es/recuva/download/standard"; Icon="🗑" }
         [PSCustomObject]@{ Id=9; Name="PreviousFilesRecovery"; Url="https://www.nirsoft.net/utils/previousfilesrecovery-x64.zip"; Icon="🗑" }
-        [PSCustomObject]@{ Id=10; Name="ExecutedProgramsList"; Url="https://www.nirsoft.net/utils/executedprogramslist.zip"; Icon="➤" }
-        [PSCustomObject]@{ Id=11; Name="UninstallView"; Url="https://www.nirsoft.net/utils/uninstallview-x64.zip"; Icon="➤" }
-        [PSCustomObject]@{ Id=12; Name="BrowserDownloadsView"; Url="https://www.majorgeeks.com/mg/get/browserdownloadsview,2.html"; Icon="➤" }
+        [PSCustomObject]@{ Id=10; Name="BrowserDownloadViewer"; Url="https://www.majorgeeks.com/mg/get/browserdownloadsview,2.html"; Icon="➤" }
+        [PSCustomObject]@{ Id=11; Name="ExecutedProgramsList"; Url="https://www.nirsoft.net/utils/executedprogramslist.zip"; Icon="➤" }
+        [PSCustomObject]@{ Id=12; Name="Usb Deview Viewer"; Url="https://dl.echo.ac/tool/usb"; Icon="➤" }
         [PSCustomObject]@{ Id=13; Name="LastActivityView"; Url="https://www.nirsoft.net/utils/lastactivityview.zip"; Icon="➤" }
-        [PSCustomObject]@{ Id=14; Name="UsbDeview Viewer"; Url="https://dl.echo.ac/tool/usb"; Icon="➤" }
-        [PSCustomObject]@{ Id=15; Name="Ocean Anticheat SS"; Url="https://anticheat.ac/download/"; Icon="⚡" }
-        [PSCustomObject]@{ Id=16; Name="Ocean Anticheat PIN"; Url="https://anticheat.ac/login/"; Icon="⚡" }
-        [PSCustomObject]@{ Id=17; Name="Echo Anticheat"; Url="https://echo.ac/free"; Icon="⚡" }
+        [PSCustomObject]@{ Id=14; Name="UninstallView"; Url="https://www.nirsoft.net/utils/uninstallview-x64.zip"; Icon="➤" }
+        [PSCustomObject]@{ Id=15; Name="DoomsdayFucker"; Url="https://github.com/MeowTonynoh/MeowDoomsdayFucker/releases"; Icon="⚡" }
+        [PSCustomObject]@{ Id=16; Name="NovoWareFucker"; Url="https://github.com/MeowTonynoh/MeowNovowareFucker/releases"; Icon="⚡" }
+        [PSCustomObject]@{ Id=17; Name="ClientFucker"; Url="https://github.com/MeowTonynoh/MeowClientFucker/releases"; Icon="⚡" }
+        [PSCustomObject]@{ Id=18; Name="MeowResolver"; Url="https://github.com/MeowTonynoh/MeowResolver/releases"; Icon="⚡" }
+        [PSCustomObject]@{ Id=19; Name="InjGen"; Url="https://github.com/Orbdiff/InjGen/"; Icon="⚡" }
+        [PSCustomObject]@{ Id=20; Name="DetectItEasy"; Url="https://github.com/horsicq/Detect-It-Easy/releases"; Icon="⚡" }
+        [PSCustomObject]@{ Id=21; Name="PathParser"; Url="https://github.com/spokwn/PathsParser/releases/"; Icon="⚡" }
+        [PSCustomObject]@{ Id=22; Name="SStool"; Url="https://github.com/Orbdiff/SSTool/releases/tag/update"; Icon="⚡" }
+        [PSCustomObject]@{ Id=23; Name="Red Lotus Downloader"; Url="https://github.com/ItzIceHere/RedLotus-Tool-Downloader"; Icon="⚡" }
+        [PSCustomObject]@{ Id=24; Name="checkdeleteUNS"; Url="https://github.com/orbdiff/checkdeletedusn"; Icon="⚡" }
+        [PSCustomObject]@{ Id=25; Name="bamparser"; Url="https://github.com/spokwn/BAM-parser/releases"; Icon="📝" }
+        [PSCustomObject]@{ Id=26; Name="luyten"; Url="https://github.com/deathmarine/Luyten/releases/download/v0.5.4_Rebuilt_with_Latest_depenencies/luyten-0.5.4.exe"; Icon="📈" }
+        [PSCustomObject]@{ Id=27; Name="Win10Live info"; Url="https://github.com/kacos2000/Win10LiveInfo/releases"; Icon="⊞" }
+        [PSCustomObject]@{ Id=28; Name="Ocean Anticheat"; Url="https://anticheat.ac/download/"; Icon="⚡" }
+        [PSCustomObject]@{ Id=29; Name="Echo Anticheat"; Url="https://echo.ac/free"; Icon="⚡" }
     )
 
     foreach ($t in $tools) {
         $idPad = $t.Id.ToString().PadLeft(2, ' ')
         Write-Host "     [$idPad] $($t.Icon) $($t.Name)" -ForegroundColor White
-        Write-Host "          $($t.Url)" -ForegroundColor DarkGray
     }
 
-    Write-Host "`n     [0] Regresar al Menú Principal" -ForegroundColor Red
-    
     while ($true) {
-        $choice = (Read-Host "`n     Ingresa el número para abrir el enlace en tu navegador (o 0 para salir)").Trim()
+        $choice = (Read-Host "`n     Ingresa el número para EJECUTAR/ABRIR la herramienta (o 0 para salir)").Trim()
         if ($choice -eq "0") { break }
         
         $selected = $tools | Where-Object { $_.Id.ToString() -eq $choice }
         if ($selected) {
-            Write-Host "     [+] Abriendo $($selected.Name) en el navegador..." -ForegroundColor Green
-            Start-Process $selected.Url
-        } else {
-            Write-Host "     [!] Opción inválida. Intenta nuevamente." -ForegroundColor Red
-        }
+            # Si el enlace termina en .exe (o similar), lo descargamos y ejecutamos al instante
+            if ($selected.Url -match "\.exe$" -or $selected.Url -match "download$") {
+                Write-Host "     [*] Descargando $($selected.Name) en directorio temporal..." -ForegroundColor Cyan
+                $exeName = ($selected.Name -replace '\s','_') + ".exe"
+                $exePath = "$env:TEMP\$exeName"
+                try {
+                    Write-Progress -Activity "Descargando Herramienta" -Status $selected.Name
+                    Invoke-WebRequest -Uri $selected.Url -OutFile $exePath -UseBasicParsing
+                    Write-Progress -Activity "Descargando Herramienta" -Completed
+                    Write-Host "     [+] Ejecutando $($selected.Name)..." -ForegroundColor Green
+                    Start-Process $exePath -Wait
+                } catch { Write-Host "     [!] Error de descarga." -ForegroundColor Red }
+            } else {
+                Write-Host "     [+] Abriendo $($selected.Name) en el navegador..." -ForegroundColor Green
+                Start-Process $selected.Url
+            }
+        } else { Write-Host "     [!] Opción inválida. Intenta nuevamente." -ForegroundColor Red }
     }
 }
 
 # ============================================================
-# [OPCION 10] EJECUTAR PAYLOAD (GITHUB)
+# [OPCION 10] HUB DE PAYLOADS GITHUB (INYECCIÓN DIRECTA EN POWERSHELL)
 # ============================================================
 function Start-RemoteScript {
-    Show-Header "EJECUCIÓN DE SCRIPT REMOTO (GITHUB)"
+    Show-Header "EJECUCIÓN NATIVA DE SCRIPTS REMOTOS"
     if (-not (Test-Administrator)) { Write-Host "     [!] Se requiere Administrador."; Pause-Scanner; return }
 
-    # ==============================================================================
-    # REEMPLAZA "TU_ENLACE_COMPLETO_AQUI" CON TU ENLACE RAW DE GITHUB
-    # ==============================================================================
-    $urlRawGithub = "https://raw.githubusercontent.com/TU_ENLACE_COMPLETO_AQUI"
-    
-    Write-Host "     [*] Preparando ejecución desde origen externo..." -ForegroundColor Cyan
-    Write-Host "     [i] URL objetivo: $urlRawGithub" -ForegroundColor DarkGray
-    Write-Host "     [!] Lanzando CMD en modo Administrador...`n" -ForegroundColor Yellow
+    Write-Host "     [*] Selecciona el script para inyectar directamente en ESTA consola:`n" -ForegroundColor Cyan
 
-    try {
-        $cmdArgs = "/k powershell Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass && powershell Invoke-Expression (Invoke-RestMethod '$urlRawGithub')"
-        Start-Process -FilePath "cmd.exe" -ArgumentList $cmdArgs -Verb RunAs
-        Write-Host "     [+] La ventana de comandos (CMD) se abrió correctamente." -ForegroundColor Green
-    } catch {
-        Write-Host "     [!] Error al intentar abrir CMD: $($_.Exception.Message)" -ForegroundColor Red
+    $payloads = @(
+        [PSCustomObject]@{ Id=1; Name="Zedoon DoomsDayDetector"; Url="https://raw.githubusercontent.com/zedoonvm1/powershell-scripts/refs/heads/main/DoomsDayDetector.ps1" }
+        [PSCustomObject]@{ Id=2; Name="Lilith Services"; Url="https://raw.githubusercontent.com/praiselily/lilith-ps/refs/heads/main/Services.ps1" }
+        [PSCustomObject]@{ Id=3; Name="Lilith Service-Enabler"; Url="https://raw.githubusercontent.com/praiselily/lilith-ps/refs/heads/main/Service-Enabler.ps1" }
+        [PSCustomObject]@{ Id=4; Name="Ordiff Kill ScreenRecording"; Url="https://raw.githubusercontent.com/Orbdiff/powershell/refs/heads/main/kill-screen-processes.ps1" }
+        [PSCustomObject]@{ Id=5; Name="Lilith DoomsdayFinder"; Url="https://raw.githubusercontent.com/praiselily/lilith-ps/refs/heads/main/DoomsdayFinder.ps1" }
+        [PSCustomObject]@{ Id=6; Name="14rpSucks dd-finder"; Url="https://raw.githubusercontent.com/l4rpsucks/Scripts/refs/heads/main/dd-finder.ps1" }
+        [PSCustomObject]@{ Id=7; Name="Ordiff JARParser"; Url="https://raw.githubusercontent.com/Orbdiff/JARParser/refs/heads/main/JARParser.ps1" }
+        [PSCustomObject]@{ Id=8; Name="NoDiff-del JARParser"; Url="https://raw.githubusercontent.com/NoDiff-del/JARParser/refs/heads/main/JARParser.ps1" }
+        [PSCustomObject]@{ Id=9; Name="RedLotus BamParser"; Url="https://raw.githubusercontent.com/PureIntent/ScreenShare/main/RedLotusBam.ps1" }
+        [PSCustomObject]@{ Id=10; Name="Spouken BamParser"; Url="https://raw.githubusercontent.com/spokwn/powershells/refs/heads/main/bamparser.ps1" }
+        [PSCustomObject]@{ Id=11; Name="MeowTonynoh Mod Analyzer"; Url="https://raw.githubusercontent.com/MeowTonynoh/MeowModAnalyzer/main/MeowModAnalyzer.ps1" }
+        [PSCustomObject]@{ Id=12; Name="RedLotus Prefetch Integrity"; Url="https://raw.githubusercontent.com/bacanoicua/Screenshare/main/RedLotusPrefetchIntegrityAnalyzer.ps1" }
+        [PSCustomObject]@{ Id=13; Name="Florinyoq Bam Deleted Keys"; Url="https://raw.githubusercontent.com/Florinyoq/Screenshare/refs/heads/main/bam.ps1" }
+        [PSCustomObject]@{ Id=14; Name="14rpSucks MiniSS"; Url="https://raw.githubusercontent.com/l4rpsucks/Scripts/refs/heads/main/miniss.ps1" }
+    )
+
+    foreach ($p in $payloads) {
+        $idPad = $p.Id.ToString().PadLeft(2, ' ')
+        Write-Host "     [$idPad] $($p.Name)" -ForegroundColor White
     }
+
+    Write-Host "`n     [0] Regresar al Menú Principal" -ForegroundColor Red
+    
+    $choice = (Read-Host "`n     Ingresa el número para inyectar el Payload").Trim()
+    if ($choice -eq "0") { return }
+    
+    $selected = $payloads | Where-Object { $_.Id.ToString() -eq $choice }
+    if ($selected) {
+        Write-Host "`n     [*] Descargando y ejecutando '$($selected.Name)' de forma silenciosa..." -ForegroundColor Yellow
+        try {
+            # Inyección limpia dentro del mismo PowerShell sin usar CMD
+            $scriptContent = Invoke-RestMethod -Uri $selected.Url -UseBasicParsing
+            Invoke-Expression $scriptContent
+            Write-Host "`n     [+] Ejecución finalizada con éxito en la memoria." -ForegroundColor Green
+        } catch { 
+            Write-Host "`n     [!] Error al ejecutar el script: $($_.Exception.Message)" -ForegroundColor Red 
+        }
+    } else { Write-Host "     [!] Opción inválida." -ForegroundColor Red }
 
     Pause-Scanner
 }
@@ -503,30 +482,21 @@ function Start-RemoteScript {
 function Start-JournalTrace {
     Show-Header "ANÁLISIS DE USN JOURNAL (JOURNALTRACE)"
     if (-not (Test-Administrator)) { Write-Host "     [!] Se requiere Administrador."; Pause-Scanner; return }
-
     $url = "https://github.com/ponei/JournalTrace/releases/download/1.0/JournalTrace.exe"
     $exePath = "$env:TEMP\JournalTrace.exe"
-
     if (-not (Test-Path $exePath)) {
         Write-Host "     [*] Descargando JournalTrace desde GitHub..." -ForegroundColor Cyan
         try {
+            Write-Progress -Activity "Descargando JournalTrace" -Status "Descargando..."
             Invoke-WebRequest -Uri $url -OutFile $exePath -UseBasicParsing
+            Write-Progress -Activity "Descargando JournalTrace" -Completed
             Write-Host "     [+] Descarga completada." -ForegroundColor Green
-        } catch {
-            Write-Host "     [!] Error de descarga: $($_.Exception.Message)" -ForegroundColor Red
-            Pause-Scanner
-            return
-        }
+        } catch { Write-Host "     [!] Error de descarga." -ForegroundColor Red; Pause-Scanner; return }
     }
-
     Write-Host "     [*] Ejecutando JournalTrace en esta consola...`n" -ForegroundColor Yellow
-    try {
-        $process = Start-Process -FilePath $exePath -NoNewWindow -Wait -PassThru
-        Write-Host "`n     [✔] Ejecución finalizada." -ForegroundColor Green
-    } catch {}
+    try { Start-Process -FilePath $exePath -NoNewWindow -Wait -PassThru | Out-Null; Write-Host "`n     [✔] Ejecución finalizada." -ForegroundColor Green } catch {}
     Pause-Scanner
 }
-
 
 # ============================================================
 # [OPCION 12] ANÁLISIS COMPLETO DEL DISCO
@@ -535,10 +505,8 @@ function Start-FullDiskScan {
     Show-Header "ANÁLISIS COMPLETO DEL DISCO"
     Write-Host "     [*] Escaneando C:\Users en busca de clientes ocultos..." -ForegroundColor Cyan
     Write-Host "     [i] Por favor espera, esto puede tomar varios minutos.`n" -ForegroundColor DarkGray
-
     $hallazgosDisco = [System.Collections.Generic.List[string]]::new()
     $pathsToScan = @("C:\Users")
-
     foreach ($path in $pathsToScan) {
         if (Test-Path $path) {
             $files = Get-ChildItem -Path $path -Recurse -File -Include "*.jar","*.exe","*.dll" -ErrorAction SilentlyContinue | Where-Object {
@@ -551,7 +519,6 @@ function Start-FullDiskScan {
             }
         }
     }
-
     Show-DetectionBox -Detections $hallazgosDisco -Title "ARCHIVOS SOSPECHOSOS EN EL DISCO"
     Pause-Scanner
 }
@@ -562,7 +529,6 @@ function Start-FullDiskScan {
 function Start-WinRCommands {
     Show-Header "RUTAS DE ANÁLISIS MANUAL (WINDOWS + R)"
     Write-Host "     [*] Rutas rápidas para ejecución manual o análisis visual...`n" -ForegroundColor Cyan
-
     $rutas = @(
         [PSCustomObject]@{ Id=1;  Cmd="C:\`$Recycle.bin"; Desc="Archivos eliminados (Papelera)" }
         [PSCustomObject]@{ Id=2;  Cmd="regedit"; Desc="Registro negativo de windows" }
@@ -575,35 +541,24 @@ function Start-WinRCommands {
         [PSCustomObject]@{ Id=9;  Cmd="C:\Windows\System32\drivers\etc"; Desc="Hosts bloqueados" }
         [PSCustomObject]@{ Id=10; Cmd="$env:LOCALAPPDATA\Microsoft\Windows\History"; Desc="Páginas y archivos ejecutados" }
     )
-
     foreach ($r in $rutas) {
         $idPad = $r.Id.ToString().PadLeft(2, ' ')
         Write-Host "     [$idPad] Comando: " -NoNewline -ForegroundColor White
         Write-Host ($r.Cmd).PadRight(60, ' ') -NoNewline -ForegroundColor Yellow
         Write-Host "`n          ➜ $($r.Desc)" -ForegroundColor Gray
     }
-
     Write-Host "`n     [0] Regresar al Menú Principal" -ForegroundColor Red
-    
     while ($true) {
         $choice = (Read-Host "`n     Ingresa el número para ABRIR la ruta (o 0 para salir)").Trim()
         if ($choice -eq "0") { break }
-        
         $selected = $rutas | Where-Object { $_.Id.ToString() -eq $choice }
         if ($selected) {
             Write-Host "     [+] Abriendo $($selected.Cmd)..." -ForegroundColor Green
             try {
-                if ($selected.Cmd -eq "regedit" -or $selected.Cmd -eq "msinfo32") {
-                    Start-Process $selected.Cmd
-                } else {
-                    Start-Process "explorer.exe" $selected.Cmd
-                }
-            } catch {
-                Write-Host "     [!] No se pudo abrir la ruta. Verifica permisos o existencia." -ForegroundColor Red
-            }
-        } else {
-            Write-Host "     [!] Opción inválida. Intenta nuevamente." -ForegroundColor Red
-        }
+                if ($selected.Cmd -eq "regedit" -or $selected.Cmd -eq "msinfo32") { Start-Process $selected.Cmd } 
+                else { Start-Process "explorer.exe" $selected.Cmd }
+            } catch { Write-Host "     [!] No se pudo abrir la ruta. Verifica permisos o existencia." -ForegroundColor Red }
+        } else { Write-Host "     [!] Opción inválida. Intenta nuevamente." -ForegroundColor Red }
     }
 }
 
@@ -619,7 +574,7 @@ function Show-MainMenu {
             Write-Host "     ╚══════════════════════════════════════════════════════════════╝" -ForegroundColor DarkRed
             Write-Host "`n       [1] Analizar Mods (.minecraft\mods)       [8] Análisis DLLs (1 MES)" -ForegroundColor White
             Write-Host "       [2] Detección Profunda Hacks                [9] Hub Herramientas SS" -ForegroundColor Yellow
-            Write-Host "       [3] Intervención Rápida (Prefetch/BAM)      [10] Ejecutar Payload (GitHub)" -ForegroundColor White
+            Write-Host "       [3] Intervención Rápida (Prefetch/BAM)      [10] Hub Payloads (GitHub)" -ForegroundColor White
             Write-Host "       [4] Análisis Papelera de Reciclaje         [11] Ejecutar JournalTrace" -ForegroundColor White
             Write-Host "       [5] Auditoría de Macros                    [12] Análisis Completo del Disco" -ForegroundColor Cyan
             Write-Host "       [6] Killer Screen (Diff)                   [13] Rutas Manuales (Win + R)" -ForegroundColor Magenta
